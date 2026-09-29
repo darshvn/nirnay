@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nirnay"
+version = "0.1.0"
+description = "A sovereign LP / MILP / QP optimisation solver written from mathematical foundations"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+# NumPy holds the arrays and Numba compiles the kernels. No optimisation library is a dependency:
+# every algorithm, factorisation and ordering in the solver is implemented in this package.
+dependencies = ["numpy>=1.24", "numba>=0.58"]
+
+[project.optional-dependencies]
+gpu = ["cupy-cuda12x"]
+# comparison and tests only - never imported by the solver itself
+bench = ["highspy", "scipy"]
+
+[project.scripts]
+nirnay = "nirnay.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["nirnay*"]

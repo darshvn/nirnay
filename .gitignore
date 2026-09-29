@@ -1,0 +1,16 @@
+__pycache__/
+*.egg-info/
+*.pyc
+.pytest_cache/
+# benchmark data is downloaded, not versioned (see data/*_list.txt)
+data/netlib/
+data/miplib/
+data/large/
+data/cases/raw/
+data/cases/**/*.mps
+data/cases/**/*.mps.gz
+results/_*.csv
+*.log
+deliverables/deck/tpl/
+deliverables/deck/*.pdf
+deliverables/deck/render/
