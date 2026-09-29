@@ -78,18 +78,60 @@ def test_highs_reference(case):
     pytest.importorskip("highspy")
     if name in SLOW_CASES and not SLOW:
         pytest.skip("slow reference solve; set NIRNAY_SLOW=1")
-    from nirnay.cases._reference import solve_mps
+    from nirnay.cases._reference import options, solve_mps
     ref = REF[name]
-    r = solve_mps(CASE_DIR / f"{name}.mps", time_limit=max(600.0, 3 * float(ref["highs_time_s"])))
+    opts = options(name)
+    r = solve_mps(CASE_DIR / f"{name}.mps", time_limit=max(600.0, 3 * float(ref["highs_time_s"])),
+                  mip_rel_gap=opts["mip_rel_gap"])
     assert r["status"] == "Optimal"
     obj = float(ref["objective"])
-    tol = 1e-6 * max(1.0, abs(obj)) if model.is_mip else 1e-7 * max(1.0, abs(obj))
-    assert abs(r["objective"] - obj) <= tol, (r["objective"], obj)
+    # a MIP solved to relative gap g is only known to within g; an LP/QP to solver tolerance
+    rel = max(opts["mip_rel_gap"], 1e-6) if model.is_mip else 1e-7
+    assert abs(r["objective"] - obj) <= rel * max(1.0, abs(obj)), (r["objective"], obj)
 
 
 def test_reference_csv_complete():
     assert set(REF) == set(CASES)
     assert all(r["highs_status"] == "Optimal" for r in REF.values())
+
+
+# ---- checks against values published with the source data --------------------------------------
+
+def _highs(model, tmp_path, **kw):
+    pytest.importorskip("highspy")
+    from nirnay.cases._reference import solve_mps
+    write_mps(model, tmp_path / "m.mps")
+    return solve_mps(tmp_path / "m.mps", **kw)
+
+
+@pytest.mark.parametrize("instance", [1, 2, 3, 4])
+def test_crude_scheduling_published(instance, tmp_path):
+    """MILP optima in Table 1 of the minlp.org problem 117 session results."""
+    from nirnay.cases import crude_scheduling as cs
+    n, published = cs.PUBLISHED_MILP[instance]
+    m = cs.build(instance, n)
+    r = _highs(m, tmp_path, time_limit=300)
+    assert r["status"] == "Optimal"
+    assert abs(r["objective"] - published) <= 5e-4 * published      # published to 3 decimals
+    # column counts of Table 3 include GAMS's objective variable
+    assert m.n + 1 == {1: 536, 2: 1387, 3: 1281, 4: 1565}[instance]
+
+
+def test_economic_dispatch_matches_pglib_baseline(tmp_path):
+    """pglib-opf BASELINE.md: DC objective 9.4304e+05 $/h for pglib_opf_case2000_goc."""
+    r = _highs(build("economic_dispatch"), tmp_path, time_limit=300)
+    assert r["status"] == "Optimal"
+    assert abs(r["objective"] - 9.4304e5) <= 0.5e1 + 5e-5 * 9.4304e5
+
+
+@pytest.mark.parametrize("instance", ["cap41", "cap131"])
+def test_facility_location_published(instance, tmp_path):
+    """OR-Library capopt optimal values."""
+    from nirnay.cases import facility_location as fl
+    m = fl.build(instance, None)
+    r = _highs(m, tmp_path, time_limit=300)
+    assert r["status"] == "Optimal"
+    assert abs(r["objective"] - fl.PUBLISHED[instance, None]) <= 1e-3
 
 
 # ---- MPS writer round trip ---------------------------------------------------------------------

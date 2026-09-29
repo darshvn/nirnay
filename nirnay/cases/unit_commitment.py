@@ -42,6 +42,13 @@ CASE_INFO = {
          "name": "pglib-uc MODEL.tex and uc_model.py",
          "url": "https://github.com/power-grid-lib/pglib-uc/blob/master/uc_model.py",
          "licence": "CC BY 4.0"},
+        {"what": "Formulation references",
+         "name": "G. Morales-Espana, J.M. Latorre, A. Ramos, Tight and compact MILP formulation for "
+                 "the thermal unit commitment problem, IEEE Trans. Power Systems 28(4):4897-4908, "
+                 "2013; S. Sridhar, J. Linderoth, J. Luedtke, Locally ideal formulations for "
+                 "piecewise linear functions with indicator variables, Oper. Res. Lett. "
+                 "41(6):627-632, 2013 (doi:10.1016/j.orl.2013.08.010)",
+         "url": "https://doi.org/10.1109/TPWRS.2013.2251373", "licence": "citation only"},
         {"what": "Underlying test system",
          "name": "RTS-GMLC, Reliability Test System - Grid Modernization Lab Consortium",
          "url": "https://github.com/GridMod/RTS-GMLC", "licence": "see repository"},

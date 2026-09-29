@@ -27,7 +27,8 @@ def _nirnay(path, method, limit, q):
         from nirnay import solve
         # warm up: the first call in a fresh process loads Numba-compiled code; that load is not
         # solving time, so it is paid on a tiny instance before the clock starts
-        warm = Path(__file__).resolve().parent.parent / "data" / "netlib" / "afiro.mps.gz"
+        root = Path(__file__).resolve().parent.parent / "data"
+        warm = root / ("qp/mm/QAFIRO.QPS" if method == "qp-ipm" else "netlib/afiro.mps.gz")
         if warm.exists():
             solve(read_mps(warm), method=method, time_limit=30)
         m = read_mps(path)
@@ -43,10 +44,16 @@ def _nirnay(path, method, limit, q):
 
 def _highs(path, limit):
     import highspy
-    tmp = Path(tempfile.gettempdir()) / Path(path).name.replace(".gz", "")
+    # HiGHS on Windows reads neither .gz nor the .QPS extension: hand it a plain .mps copy
+    stem = Path(path).name.replace(".gz", "")
+    if stem.lower().endswith(".qps"):
+        stem = stem[:-4] + ".mps"
+    tmp = Path(tempfile.gettempdir()) / stem
     if str(path).endswith(".gz"):
         with gzip.open(path, "rb") as a, open(tmp, "wb") as b:
             shutil.copyfileobj(a, b)
+    elif Path(path).name != stem:
+        shutil.copyfile(path, tmp)
     else:
         tmp = Path(path)
     h = highspy.Highs()
@@ -84,7 +91,7 @@ def main():
     ap.add_argument("--only", nargs="*", default=None)
     ap.add_argument("--max-nnz", type=int, default=10**9)
     a = ap.parse_args()
-    files = sorted(Path(a.folder).glob("*.mps*"))
+    files = sorted([*Path(a.folder).glob("*.mps*"), *Path(a.folder).glob("*.QPS"), *Path(a.folder).glob("*.qps")])
     if a.only:
         files = [f for f in files if f.name.split(".")[0] in a.only]
     out = Path(a.out or f"results/{Path(a.folder).name}_{a.method}.csv")

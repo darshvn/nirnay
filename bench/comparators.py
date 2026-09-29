@@ -69,7 +69,7 @@ ALIASES = {
     "osqp-tight": ("osqp", "tight"),
     "scip-lp-dual": ("scip", "d"), "scip-lp-primal": ("scip", "p"),
 }
-WSL_SOLVERS = {"cuopt"} | ({"cbc"} if IS_WINDOWS else set())
+WSL_SOLVERS = {"cuopt", "cbc"} if IS_WINDOWS else set()   # inside WSL: run natively
 
 
 # ----------------------------------------------------------------------------------------- utils
@@ -86,12 +86,15 @@ _TMP = Path(tempfile.gettempdir()) / "nirnay_comparators"
 def plain_mps(path) -> str:
     """Path to an uncompressed copy of `path` (HiGHS on Windows, GLPK and CBC cannot read .gz)."""
     path = Path(path)
-    if path.suffix != ".gz":
+    gz = path.suffix.lower() == ".gz"
+    stem = path.name[:-3] if gz else path.name
+    if not gz and path.suffix == ".mps":
         return str(path)
+    # readers pick the format from the extension, so .QPS / .MPS / .qps become <stem>.mps
     _TMP.mkdir(parents=True, exist_ok=True)
-    out = _TMP / path.name[:-3]
+    out = _TMP / (Path(stem).stem + ".mps")
     if not out.exists() or out.stat().st_mtime < path.stat().st_mtime:
-        with gzip.open(path, "rb") as a, open(out, "wb") as b:
+        with (gzip.open(path, "rb") if gz else open(path, "rb")) as a, open(out, "wb") as b:
             shutil.copyfileobj(a, b)
     return str(out)
 
@@ -107,7 +110,12 @@ def _highs(path, tl, method, verbose):
     import highspy
     h = highspy.Highs()
     h.setOptionValue("output_flag", bool(verbose))
-    h.setOptionValue("time_limit", float(tl))
+    # HiGHS 1.15.1 + cuPDLP-C (solver=pdlp) on Windows stops after ~0.07 s with "Time limit
+    # reached" whenever time_limit is finite (25fv47: 965 iterations, then objective 0). With no
+    # limit it solves (63240 iterations, 3.7 s). So for pdlp we leave the limit unset and rely
+    # on the batch driver's hard kill.
+    if method != "pdlp":
+        h.setOptionValue("time_limit", float(tl))
     h.readModel(plain_mps(path))
     is_mip = any(t != highspy.HighsVarType.kContinuous for t in h.getLp().integrality_)
     if method and not is_mip:
@@ -125,7 +133,8 @@ def _highs(path, tl, method, verbose):
                                                     math.isfinite(info.objective_function_value))
     obj = info.objective_function_value if has_sol else None
     iters = {"simplex": info.simplex_iteration_count, "ipm": info.ipm_iteration_count,
-             "pdlp": info.pdlp_iteration_count, "crossover": info.crossover_iteration_count}
+             "pdlp": info.pdlp_iteration_count, "crossover": info.crossover_iteration_count,
+             "qp": getattr(info, "qp_iteration_count", 0)}
     it = sum(v for v in iters.values() if v and v > 0) or 0
     r = _result(status=status, objective=obj, time=t, iterations=it, raw_status=raw)
     if is_mip:

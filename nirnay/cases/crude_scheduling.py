@@ -50,13 +50,18 @@ CASE_INFO = {
         {"what": "Instance data COSP1-COSP4 (vessels, tanks, CDUs, flow limits, crude properties, "
                  "specifications, demands, margins) and the MOS model (Scheduler.gms)",
          "name": "minlp.org problem 117, Crude-oil Operations Scheduling, S. Mouret and "
-                 "I.E. Grossmann, CrudeOil.zip",
-         "url": "https://www.minlp.org/library/problem/index.php?i=117",
+                 "I.E. Grossmann, model CrudeOil MOS Model, CrudeOil.zip",
+         "url": "https://www.minlp.org/library/problem/mod/download.php?file=CrudeOil.zip&location=292/input/CrudeOil.zip",
          "licence": "no licence stated; published in the CMU-IBM open MINLP library (NSF grant "
                     "OCI-0750826) for research use"},
-        {"what": "Published MILP-relaxation optimum for each instance and slot count (Table 1)",
-         "name": "minlp.org problem 117 session results (PDF)",
+        {"what": "Problem page (problem statement, model description)",
+         "name": "minlp.org problem 117",
          "url": "https://www.minlp.org/library/problem/index.php?i=117",
+         "licence": "as above"},
+        {"what": "Published MILP-relaxation optimum for each instance and slot count (Table 1) "
+                 "and model sizes (Table 3)",
+         "name": "minlp.org problem 117 session results (PDF)",
+         "url": "https://www.minlp.org/problems/ver/152/results/SessionResults.pdf",
          "licence": "as above"},
         {"what": "Original problem and data",
          "name": "H. Lee, J.M. Pinto, I.E. Grossmann, S. Park, Mixed-integer linear programming "
@@ -78,10 +83,6 @@ CASE_INFO = {
                 "the first step of the published method, so tank-outlet compositions are not "
                 "forced to equal tank compositions"],
 }
-
-
-def _vs(**kw):
-    return kw
 
 
 def _instance(num: int) -> dict:

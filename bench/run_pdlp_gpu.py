@@ -7,6 +7,9 @@ tolerance --tol, and HiGHS as the comparator in up to three modes:
   * highs-pdlp HiGHS's own PDLP (a CPU port of cuPDLP-C) at the same tolerance (optional)
 HiGHS is used here only as a comparator; the solver never imports it.
 
+MIP instances (MIPLIB 2017) are run as their LP relaxations by every solver: NIRNAY PDLP drops
+integrality itself and HiGHS gets solve_relaxation = true.
+
 Each run is a separate process with a wall-clock limit, so a stalled run cannot stop the sweep.
 Both PDLP backends are warmed up first on a tiny LP so that JIT compilation (Numba, NVRTC) is not
 charged to the first large instance; the reported PDLP time includes preconditioning and the
@@ -38,13 +41,13 @@ def _warm(gpu):
         pdlp.solve(read_mps(here), gpu=gpu, tol=1e-4)
 
 
-def _pdlp(path, gpu, tol, limit, q):
+def _pdlp(path, gpu, tol, limit, threads, q):
     try:
         from nirnay.io.mps import read_mps
         from nirnay.lp import pdlp
         _warm(gpu)
         m = read_mps(path)
-        r = pdlp.solve(m, gpu=gpu, tol=tol, time_limit=limit, max_iter=10**9)
+        r = pdlp.solve(m, gpu=gpu, tol=tol, time_limit=limit, max_iter=10**9, threads=threads)
         v = m.violation(r.x) if r.x is not None else {"row": np.nan}
         q.put({"status": r.status, "obj": r.objective, "time": r.time, "iters": r.iterations,
                "m": m.m, "n": m.n, "nnz": m.A.nnz, "backend": r.info.get("backend", ""),
@@ -65,19 +68,24 @@ def _highs(path, mode, tol, limit, q):
         else:
             tmp = Path(path)
         h = highspy.Highs()
-        h.setOptionValue("output_flag", False)
-        h.setOptionValue("time_limit", float(limit))
+
+        def setopt(k, v):                        # a rejected option must not pass silently
+            if h.setOptionValue(k, v) != highspy.HighsStatus.kOk:
+                raise ValueError(f"HiGHS rejected option {k}={v}")
+        setopt("output_flag", False)
+        setopt("time_limit", float(limit))
+        setopt("solve_relaxation", True)          # the MIP files are benchmarked as LP relaxations
         if mode == "highs-ipm":
-            h.setOptionValue("solver", "ipm")
-            h.setOptionValue("run_crossover", "off")
-            h.setOptionValue("ipm_optimality_tolerance", tol)
-            h.setOptionValue("primal_feasibility_tolerance", tol)
-            h.setOptionValue("dual_feasibility_tolerance", tol)
+            setopt("solver", "ipm")
+            setopt("run_crossover", "off")
+            setopt("ipm_optimality_tolerance", tol)
+            setopt("primal_feasibility_tolerance", tol)
+            setopt("dual_feasibility_tolerance", tol)
         elif mode == "highs-pdlp":
-            h.setOptionValue("solver", "pdlp")
-            h.setOptionValue("pdlp_d_gap_tol", tol)
-            h.setOptionValue("primal_feasibility_tolerance", tol)
-            h.setOptionValue("dual_feasibility_tolerance", tol)
+            setopt("solver", "pdlp")
+            setopt("pdlp_optimality_tolerance", tol)
+            setopt("primal_feasibility_tolerance", tol)
+            setopt("dual_feasibility_tolerance", tol)
         h.readModel(str(tmp))
         t = time.perf_counter()
         h.run()
@@ -124,6 +132,7 @@ def main():
     ap.add_argument("--limit", type=float, default=600)
     ap.add_argument("--out", default="results/large_pdlp_gpu.csv")
     ap.add_argument("--only", nargs="*", default=None)
+    ap.add_argument("--threads", type=int, default=None, help="Numba threads for CPU PDLP")
     ap.add_argument("--skip", nargs="*", default=[], help="runs to skip: cpu gpu highs highs-ipm highs-pdlp")
     a = ap.parse_args()
     files = sorted(Path(a.folder).glob("*.mps*"))
@@ -149,7 +158,7 @@ def main():
             res = {}
             for mo in modes:
                 if mo in ("cpu", "gpu"):
-                    r = _in_process(_pdlp, (str(f), mo == "gpu", a.tol, a.limit), a.limit)
+                    r = _in_process(_pdlp, (str(f), mo == "gpu", a.tol, a.limit, a.threads), a.limit)
                 else:
                     r = _in_process(_highs, (str(f), mo, a.tol, a.limit), a.limit)
                 res[mo] = r

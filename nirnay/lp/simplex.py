@@ -125,6 +125,7 @@ class SimplexLP:
         Bi = np.concatenate(rows).astype(np.int64) if rows else np.zeros(0, dtype=np.int64)
         Bx = np.concatenate(vals) if vals else np.zeros(0)
         repairs = self.factor_.factor(Bp, Bi, Bx, is_log)
+        self.factor_valid = True
         if repairs:
             for pos, row in repairs:
                 old = self.head[pos]
@@ -179,9 +180,17 @@ class SimplexLP:
         return fixed
 
     # ---------------------------------------------------------------- dual simplex loop
+    def _ensure_factor(self, lo, up, c):
+        """Refactor only when the basis changed outside the simplex loops (a new basis was
+        loaded); otherwise the current LU + eta file is still B^-1 and a recompute suffices."""
+        if getattr(self, "factor_valid", False):
+            self._recompute(lo, up, c)
+        else:
+            self._refactor(lo, up, c)
+
     def _dual_loop(self, lo, up, c, deadline, max_iter):
         m = self.m
-        self._refactor(lo, up, c)
+        self._ensure_factor(lo, up, c)
         self._dual_feasibility_fix(lo, up, c)
         skip = np.zeros(m, dtype=bool)
         fresh = True
@@ -278,7 +287,7 @@ class SimplexLP:
     # ---------------------------------------------------------------- primal simplex (cleanup)
     def _primal_loop(self, lo, up, c, deadline, max_iter):
         m = self.m
-        self._refactor(lo, up, c)
+        self._ensure_factor(lo, up, c)
         while True:
             if self.iterations >= max_iter:
                 return "iteration_limit"
@@ -384,8 +393,12 @@ class SimplexLP:
         st = status.astype(np.int64)
         if int(np.sum(st == BASIC)) != self.m:
             return False
+        same = bool(np.array_equal(st == BASIC, self.status == BASIC))
         self.status[:] = st
-        self.head = np.flatnonzero(st == BASIC).astype(np.int64)
+        if not same:
+            # a different basic set: the factorisation no longer describes it
+            self.head = np.flatnonzero(st == BASIC).astype(np.int64)
+            self.factor_valid = False
         for j in np.flatnonzero(st != BASIC):
             if st[j] == FIXED and self.lo[j] != self.up[j]:
                 self.status[j] = self._bound_status(j, self.lo, self.up, 0.0)

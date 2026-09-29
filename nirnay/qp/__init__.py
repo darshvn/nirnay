@@ -1,0 +1,1 @@
+"""Convex quadratic programming."""

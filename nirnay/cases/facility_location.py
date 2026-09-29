@@ -14,8 +14,10 @@ c_ij is, as in the data files, the cost of allocating ALL of customer j's demand
 fraction x_ij costs c_ij x_ij. Customer demand may be split (this is the problem the published
 optimal values in capopt refer to).
 
-Default instance: capa with capacity 8000 (100 depots, 1000 customers): 100 binaries and
-100 000 continuous variables. The optimal value 19240822.449 is published in OR-Library's capopt.
+Default instance: capb with capacity 5000 (100 depots, 1000 customers): 100 binaries and
+100 000 continuous variables. The optimal value 13656379.578 is published in OR-Library's capopt;
+HiGHS 1.15.1 proves 13656379.5776 in about 9 minutes. (capa with capacity 8000 is harder: HiGHS
+finds the published optimum 19240822.449 but does not close the gap within 30 minutes.)
 """
 from __future__ import annotations
 
@@ -24,15 +26,15 @@ import numpy as np
 from ._builder import RAW, Builder
 
 CASE_INFO = {
-    "title": "Capacitated facility location, OR-Library capa (100 depots x 1000 customers)",
+    "title": "Capacitated facility location, OR-Library capb (100 depots x 1000 customers)",
     "sector": "Supply chain / logistics network design",
     "class": "MILP",
     "sources": [
         {"what": "Depot capacities and fixed costs, customer demands, allocation costs",
-         "name": "OR-Library, capacitated warehouse location, file capa",
-         "url": "https://people.brunel.ac.uk/~mastjjb/jeb/orlib/files/capa.txt",
+         "name": "OR-Library, capacitated warehouse location, file capb",
+         "url": "https://people.brunel.ac.uk/~mastjjb/jeb/orlib/files/capb.txt",
          "licence": "MIT (OR-Library legal page, https://people.brunel.ac.uk/~mastjjb/jeb/orlib/legal.html)"},
-        {"what": "Published optimal values (capa, capacity 8000: 19240822.449)",
+        {"what": "Published optimal values (capb, capacity 5000: 13656379.578)",
          "name": "OR-Library capopt",
          "url": "https://people.brunel.ac.uk/~mastjjb/jeb/orlib/files/capopt.txt",
          "licence": "MIT"},
@@ -41,7 +43,7 @@ CASE_INFO = {
                  "problems, European Journal of Operational Research 33 (1988) 314-325",
          "url": "https://doi.org/10.1016/0377-2217(88)90175-0", "licence": "citation only"},
     ],
-    "real": ["all numbers from the OR-Library file; the capacity 8000 for capa is one of the four "
+    "real": ["all numbers from the OR-Library file; the capacity 5000 for capb is one of the four "
              "values listed in capopt (and Table 1 of Beasley 1988)"],
     "assumed": ["the data are a standard benchmark (derived from the Akinc-Khumawala test "
                 "problems), not an Indian network; no Indian depot-level dataset with costs "
@@ -72,7 +74,12 @@ def read_orlib_cap(path, capacity: float | None = None):
     return cap, fixed, dem, cost
 
 
-def build(instance: str = "capa", capacity: float | None = 8000.0, strong: bool = True):
+# published optima (OR-Library capopt) for the instances used in tests
+PUBLISHED = {("cap41", None): 1040444.375, ("cap131", None): 793439.562,
+             ("capa", 8000.0): 19240822.449, ("capb", 5000.0): 13656379.578}
+
+
+def build(instance: str = "capb", capacity: float | None = 5000.0, strong: bool = True):
     path = RAW / "supply" / f"orlib_{instance}.txt"
     cap, fixed, dem, cost = read_orlib_cap(path, capacity if instance.startswith("capa")
                                            or instance in ("capb", "capc") else None)

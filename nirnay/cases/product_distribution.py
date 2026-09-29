@@ -30,27 +30,32 @@ import math
 from ._builder import Builder
 
 CASE_INFO = {
-    "title": "Distribution of BS-VI petrol and diesel from 22 Indian refineries to 36 states/UTs",
+    "title": "Distribution of BS-VI petrol and diesel from 21 Indian refineries to 36 states/UTs",
     "sector": "Supply chain / petroleum-product logistics (India)",
     "class": "LP",
     "sources": [
         {"what": "State-wise annual sales of MS and HSD, 2024-25",
          "name": "PPAC, State-wise sales of petroleum products (PT_Cons_Statewise MS / HSD)",
-         "url": "https://ppac.gov.in/consumption/state-wise",
+         "url": "https://ppac.gov.in/uploads/page-images/1787137273_Statewise_Sales-POL_Consumption_Final.xlsx",
          "licence": "Government of India publication; reuse under the Government Open Data "
                     "Licence - India (GODL) as a public statistical release"},
         {"what": "Refinery-wise crude oil processed, FY 2024-25",
          "name": "PPAC, Crude oil processed by refineries (refinery-wise), 2024-25 (P)",
-         "url": "https://ppac.gov.in/refining/crude-oil-processing",
+         "url": "https://ppac.gov.in/production/crude-processing",
          "licence": "as above (GODL - India)"},
         {"what": "All-India production of MS-VI and HSD-VI, 2024-25",
          "name": "PPAC, Production of petroleum products, 2024-25 (P)",
          "url": "https://ppac.gov.in/production/petroleum-products",
          "licence": "as above (GODL - India)"},
         {"what": "Refinery and state-capital coordinates",
-         "name": "Wikidata (items listed in COORDS below) and English Wikipedia infoboxes",
+         "name": "Wikidata (items listed in COORDS; SPARQL query results saved in data/cases/raw/supply)",
          "url": "https://query.wikidata.org/",
-         "licence": "Wikidata CC0 1.0; Wikipedia text CC BY-SA 4.0"},
+         "licence": "Wikidata CC0 1.0"},
+        {"what": "Coordinates of Koyali, Jamnagar and Tatipaka refineries (Wikipedia API) and Kochi "
+                 "refinery (infobox)",
+         "name": "English Wikipedia",
+         "url": "https://en.wikipedia.org/wiki/Kochi_Refinery",
+         "licence": "CC BY-SA 4.0"},
     ],
     "real": ["state-wise MS and HSD sales (36 states/UTs)", "refinery-wise crude processed",
              "all-India MS-VI and HSD-VI production", "coordinates"],

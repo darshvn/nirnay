@@ -9,7 +9,7 @@ from .model import CSC, Model, Result  # noqa: F401
 def solve(model, method: str = "auto", **options):
     """Solve a Model. method: auto | ipm | simplex | pdlp | pdlp-gpu | bnb."""
     if method == "auto":
-        method = "bnb" if model.is_mip else ("qp-ipm" if model.is_qp else "ipm")
+        method = "bnb" if model.is_mip else ("qp-ipm" if model.is_qp else "simplex")
     if method == "ipm":
         from .lp import ipm
         return ipm.solve(model, **options)

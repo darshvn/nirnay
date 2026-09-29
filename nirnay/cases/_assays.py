@@ -5,6 +5,10 @@
 The refinery case studies read only the CSV, so they need no spreadsheet library; this module
 (which needs openpyxl and xlrd) documents and reproduces how every number in the CSV was obtained.
 
+The CSV holds the public-domain SPR crudes only. ExxonMobil's terms of use allow redistribution of
+its assay files only complete and unaltered, so their numbers are not written to the CSV: they are
+extracted at run time from the unaltered files when a case is built with include_exxonmobil=True.
+
 Sources
   * US DOE Strategic Petroleum Reserve crude assays (8 streams). Works of the US Government, public
     domain (17 U.S.C. 105). Cut columns: Gas (C2-C4), fractions 1-7 with end points 175, 250, 375,
@@ -18,14 +22,14 @@ Model streams and the assay cuts aggregated into them
                    SPR (deg C, converted from deg F)       ExxonMobil (deg C)
   LPG              C2-C4                                   IBP-C4
   LN  light naph.  C5-79                                   C5-100
-  HN  heavy naph.  79-191                                  100-200
-  KERO             191-277                                 200-300
-  GO  gas oil      277-343                                 300-370
+  HN  heavy naph.  79-191                                  100-150
+  KERO             191-277                                 150-250
+  GO  gas oil      277-343                                 250-370
   VGO              343-566                                 370-550
   VR               566+                                    550+
 
 Aggregation of sub-cuts: mass yield and volume yield add; density = total mass / total volume;
-sulphur is mass-weighted; RON, cetane index and smoke point are volume-weighted (the linear
+sulphur is mass-weighted; RON, cetane index, smoke point and naphthalenes are volume-weighted (the linear
 blending approximation also used in the LP) and left empty unless every sub-cut reports a value.
 SPR densities are relative densities 60/60 F; they are multiplied by the density of water at 60 F,
 0.999016 g/cm3, to give g/cm3 at 15.6 C.
@@ -41,7 +45,7 @@ DIR = RAW / "refinery"
 OUT = DIR / "crude_streams.csv"
 STREAMS = ["LPG", "LN", "HN", "KERO", "GO", "VGO", "VR"]     # plus a "CRUDE" row per crude
 FIELDS = ["crude", "source", "file", "stream", "cut", "wt_pct", "vol_pct", "density", "sulphur_wt_pct",
-          "ron", "cetane_index", "smoke_point_mm"]
+          "ron", "cetane_index", "smoke_point_mm", "naphthalenes_vol_pct"]
 
 SPR_FILES = {
     "Bayou Choctaw Sour": "spr/BayouChoctawSrAssay.xls",
@@ -65,9 +69,9 @@ SPR_CUTS = {"LPG": ([0], "C2-C4"), "LN": ([1], "C5-79C"), "HN": ([2, 3], "79-191
             "KERO": ([4], "191-277C"), "GO": ([5], "277-343C"), "VGO": ([6, 7], "343-566C"),
             "VR": ([10], "566C+")}
 EM_CUTS = {"LPG": ([("IBP", "C4")], "IBP-C4"), "LN": ([("C5", "65"), ("65", "100")], "C5-100C"),
-           "HN": ([("100", "150"), ("150", "200")], "100-200C"),
-           "KERO": ([("200", "250"), ("250", "300")], "200-300C"),
-           "GO": ([("300", "350"), ("350", "370")], "300-370C"),
+           "HN": ([("100", "150")], "100-150C"),
+           "KERO": ([("150", "200"), ("200", "250")], "150-250C"),
+           "GO": ([("250", "300"), ("300", "350"), ("350", "370")], "250-370C"),
            "VGO": ([("370", "450"), ("450", "500"), ("500", "550")], "370-550C"),
            "VR": ([("550", "FBP")], "550C+")}
 WATER_60F = 0.999016
@@ -96,7 +100,8 @@ def _aggregate(parts):
         out["density"] = None
     out["sulphur_wt_pct"] = (sum(p["wt"] * p["S"] for p in parts) / wt
                              if all(p["S"] is not None for p in parts) and wt else None)
-    for key, name in (("ron", "ron"), ("ci", "cetane_index"), ("sp", "smoke_point_mm")):
+    for key, name in (("ron", "ron"), ("ci", "cetane_index"), ("sp", "smoke_point_mm"),
+                      ("nap", "naphthalenes_vol_pct")):
         out[name] = (sum(p["vol"] * p[key] for p in parts) / vol
                      if all(p[key] is not None for p in parts) and vol else None)
     return out
@@ -185,7 +190,8 @@ def extract() -> list[dict]:
             parts = [{"wt": get("mass %", k), "vol": get("Vol. %", k),
                       "dens": (get("Relative Density, 60/60° F", k) or 0) * WATER_60F or None,
                       "S": get("Sulfur, mass %", k), "ron": get("Research Octane Number", k),
-                      "ci": get("Cetane Index", k), "sp": get("Smoke point, mm", k)} for k in cols]
+                      "ci": get("Cetane Index", k), "sp": get("Smoke point, mm", k),
+                      "nap": get("Naphthalenes, Vol. %", k)} for k in cols]
             out.append({"crude": crude, "source": "US DOE SPR", "file": rel, "stream": s, "cut": cut,
                         **_aggregate(parts)})
         head = _spr_head(DIR / rel)
@@ -193,7 +199,7 @@ def extract() -> list[dict]:
                     "cut": "whole crude", "wt_pct": 100.0, "vol_pct": 100.0,
                     "density": head["Relative Density, 60/60° F"] * WATER_60F,
                     "sulphur_wt_pct": head["Sulfur, mass %"], "ron": None, "cetane_index": None,
-                    "smoke_point_mm": None})
+                    "smoke_point_mm": None, "naphthalenes_vol_pct": None})
     for crude, rel in EM_FILES.items():
         lab, mol = _em(DIR / rel)
         cols = _em_columns(lab)
@@ -206,23 +212,25 @@ def extract() -> list[dict]:
                 out.append({"crude": crude, "source": "ExxonMobil", "file": rel, "stream": s,
                             "cut": "C1-C4 (light hydrocarbon table)", "wt_pct": wt, "vol_pct": None,
                             "density": None, "sulphur_wt_pct": None, "ron": None,
-                            "cetane_index": None, "smoke_point_mm": None})
+                            "cetane_index": None, "smoke_point_mm": None, "naphthalenes_vol_pct": None})
                 continue
             parts = [{"wt": get("Yield (% wt)", cols[c]), "vol": get("Yield (% vol)", cols[c]),
                       "dens": get(dens_key, cols[c]), "S": get("Total Sulfur (% wt)", cols[c]),
                       "ron": get("RON (Clear)", cols[c]), "ci": get("Cetane Index (D4737A)", cols[c]),
-                      "sp": get("Smoke Point (mm)", cols[c])} for c in cuts]
+                      "sp": get("Smoke Point (mm)", cols[c]),
+                      "nap": get("Naphthalenes (% vol)", cols[c])} for c in cuts]
             out.append({"crude": crude, "source": "ExxonMobil", "file": rel, "stream": s, "cut": cut,
                         **_aggregate(parts)})
         out.append({"crude": crude, "source": "ExxonMobil", "file": rel, "stream": "CRUDE",
                     "cut": "whole crude", "wt_pct": 100.0, "vol_pct": 100.0,
                     "density": get(dens_key, "C"), "sulphur_wt_pct": get("Total Sulfur (% wt)", "C"),
-                    "ron": None, "cetane_index": None, "smoke_point_mm": None})
+                    "ron": None, "cetane_index": None, "smoke_point_mm": None,
+                    "naphthalenes_vol_pct": None})
     return out
 
 
 def write(rows=None) -> Path:
-    rows = rows if rows is not None else extract()
+    rows = rows if rows is not None else [r for r in extract() if r["source"] == "US DOE SPR"]
     with open(OUT, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=FIELDS)
         w.writeheader()
@@ -232,14 +240,19 @@ def write(rows=None) -> Path:
     return OUT
 
 
-def load() -> dict:
-    """{crude: {stream: {field: value}}} from the CSV, plus crude-level source info."""
+def load(include_exxonmobil: bool = False) -> dict:
+    """{crude: {stream: {field: value}}}: the SPR crudes from the CSV, and optionally the five
+    ExxonMobil crudes extracted from the unaltered assay files (needs openpyxl)."""
     data: dict = {}
     with open(OUT, newline="") as fh:
-        for r in csv.DictReader(fh):
-            rec = {k: (float(v) if v not in ("", None) and k not in ("crude", "source", "file", "stream", "cut")
-                       else (v if v != "" else None)) for k, v in r.items()}
-            data.setdefault(r["crude"], {})[r["stream"]] = rec
+        rows = list(csv.DictReader(fh))
+    if include_exxonmobil:
+        rows += [{k: ("" if r.get(k) is None else r[k]) for k in FIELDS}
+                 for r in extract() if r["source"] == "ExxonMobil"]
+    for r in rows:
+        rec = {k: (float(v) if v not in ("", None) and k not in ("crude", "source", "file", "stream", "cut")
+                   else (v if v != "" else None)) for k, v in r.items()}
+        data.setdefault(r["crude"], {})[r["stream"]] = rec
     return data
 
 

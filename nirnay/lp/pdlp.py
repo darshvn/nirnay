@@ -66,6 +66,10 @@ BETA_SUFFICIENT = 0.2
 BETA_NECESSARY = 0.8
 BETA_ARTIFICIAL = 0.36
 PRIMAL_WEIGHT_SMOOTHING = 0.5
+# PDLP tests for certificates at every check. Here: every 4th check (256 attempts). The test costs
+# two extra products and ~20 vector passes, which on small models on the GPU cost more than the
+# 64-attempt block itself; a certificate only gets better with time, so waiting costs little.
+RAY_CHECK_EVERY = 4
 
 
 # =============================================================================================
@@ -242,8 +246,11 @@ _block_ser = njit(cache=True, fastmath=_FM)(_twin(_pdhg_block_src, "_ser"))
 
 
 @njit(cache=True)
-def _kkt_cpu(c, rl, ru, lb, ub, c0, x, y, ax, aty, ux, uy, uax, uaty):
-    """_kkt in one pass and no temporaries, on (x*ux, y*uy, ax*uax, aty*uaty)."""
+def _kkt_cpu(c, rl, ru, lb, ub, x, y, ax, aty, ux, uy, uax, uaty):
+    """KKT sums of (x*ux, y*uy, ax*uax, aty*uaty) in one pass, no temporaries: see _finish_kkt.
+
+    y is assumed to lie in the sign cone Y (true of every iterate and of their averages).
+    """
     rp2 = 0.0
     dobj = 0.0
     for i in range(rl.shape[0]):
@@ -275,11 +282,20 @@ def _kkt_cpu(c, rl, ru, lb, ub, c0, x, y, ax, aty, ux, uy, uax, uaty):
             else:
                 rd2 += lam * lam
     out = np.empty(4)
-    out[0] = pobj + c0
-    out[1] = dobj + c0
-    out[2] = np.sqrt(rp2)
-    out[3] = np.sqrt(rd2)
+    out[0] = pobj
+    out[1] = dobj
+    out[2] = rp2
+    out[3] = rd2
     return out
+
+
+@njit(cache=True)
+def _sqdist(a, b):
+    s = 0.0
+    for i in range(a.shape[0]):
+        d = a[i] - b[i]
+        s += d * d
+    return s
 
 
 class _CPU:
@@ -363,7 +379,10 @@ class _CPU:
     def kkt(self, P, x, y, Ax, ATy, U=None):
         if U is None:
             U = self.ones
-        return _kkt_cpu(P.c, P.rl, P.ru, P.lb, P.ub, P.c0, x, y, Ax, ATy, *U)
+        return _kkt_cpu(P.c, P.rl, P.ru, P.lb, P.ub, x, y, Ax, ATy, *U)
+
+    def dist2(self, a, ar, b, br):
+        return np.array([_sqdist(a, ar), _sqdist(b, br)])
 
     def averages(self):
         return self.sx / self.wsum, self.sy / self.wsum
@@ -497,6 +516,47 @@ extern "C" __global__ void pdhg_stepsize(double* sc) {
 
 extern "C" __global__ void pdhg_clear(double* sc) { sc[3] = 0.0; sc[4] = 0.0; }
 
+// KKT sums (see _kkt_cpu): out += [c'x, dual objective, |r_primal|^2, |r_dual|^2] of
+// (x*ux, y*uy, ax*uax, aty*uaty) if scaled, else of (x, y, ax, aty). Threads [0,m) rows, then columns.
+extern "C" __global__ void kkt_sums(int n, int m, const double* __restrict__ c,
+        const double* __restrict__ rl, const double* __restrict__ ru, const double* __restrict__ lb,
+        const double* __restrict__ ub, const double* __restrict__ x, const double* __restrict__ y,
+        const double* __restrict__ ax, const double* __restrict__ aty, const double* __restrict__ ux,
+        const double* __restrict__ uy, const double* __restrict__ uax, const double* __restrict__ uaty,
+        int scaled, double* out) {
+    long long t = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    double po = 0.0, du = 0.0, rp = 0.0, rd = 0.0;
+    if (t < m) {
+        int i = (int)t;
+        double a = scaled ? ax[i] * uax[i] : ax[i];
+        double r = a < rl[i] ? rl[i] - a : (a > ru[i] ? a - ru[i] : 0.0);
+        rp = r * r;
+        double yi = scaled ? y[i] * uy[i] : y[i];
+        if (yi > 0.0 && isfinite(rl[i])) du = rl[i] * yi;
+        else if (yi < 0.0 && isfinite(ru[i])) du = ru[i] * yi;
+    } else if (t < (long long)n + m) {
+        int j = (int)(t - m);
+        po = c[j] * (scaled ? x[j] * ux[j] : x[j]);
+        double lam = c[j] - (scaled ? aty[j] * uaty[j] : aty[j]);
+        if (lam > 0.0) { if (isfinite(lb[j])) du = lb[j] * lam; else rd = lam * lam; }
+        else if (lam < 0.0) { if (isfinite(ub[j])) du = ub[j] * lam; else rd = lam * lam; }
+    }
+    block_add2(po, du, out, out + 1);
+    __syncthreads();
+    block_add2(rp, rd, out + 2, out + 3);
+}
+
+// out += [|a - ar|^2, |b - br|^2] with a, ar of length n and b, br of length m.
+extern "C" __global__ void dist2(int n, int m, const double* __restrict__ a,
+        const double* __restrict__ ar, const double* __restrict__ b, const double* __restrict__ br,
+        double* out) {
+    long long t = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    double u = 0.0, v = 0.0;
+    if (t < n) { double d = a[t] - ar[t]; u = d * d; }
+    else if (t < (long long)n + m) { double d = b[t - n] - br[t - n]; v = d * d; }
+    block_add2(u, v, out, out + 1);
+}
+
 // Plain product out = M v, M in CSR, G lanes per row.
 template<int G>
 __global__ void csr_spmv(int m, const int* __restrict__ p, const int* __restrict__ j,
@@ -526,7 +586,10 @@ def _group(avg_len: float) -> int:
 
 class _GPU:
     def __init__(self, S: _Scaled, use_graph: bool = True):
-        import cupy as cp
+        import warnings
+        with warnings.catch_warnings():            # CuPy warns when CUDA_PATH is unset even though
+            warnings.simplefilter("ignore")        # its pip-installed toolkit libraries are found
+            import cupy as cp
         self.cp = cp
         self.xp = cp
         self.S = S
@@ -555,6 +618,8 @@ class _GPU:
             self.k_commit = mod.get_function("pdhg_commit_primal")
             self.k_step = mod.get_function("pdhg_stepsize")
             self.k_clear = mod.get_function("pdhg_clear")
+            self.k_kkt = mod.get_function("kkt_sums")
+            self.k_dist = mod.get_function("dist2")
             self.k_rows = mod.get_function(names[0])
             self.k_cols = mod.get_function(names[1])
             self.k_spmv_r = mod.get_function(names[2])
@@ -651,9 +716,17 @@ class _GPU:
         return float(s[_ETA]), float(s[_WSUM]), int(s[_NREJ])
 
     def kkt(self, P, x, y, Ax, ATy, U=None):
-        if U is not None:
-            x, y, Ax, ATy = x * U[0], y * U[1], Ax * U[2], ATy * U[3]
-        return _kkt(self.cp, P, x, y, Ax, ATy)
+        out = self.cp.zeros(4)
+        scaled = U is not None
+        U = U if scaled else (x, y, Ax, ATy)          # unused when not scaled
+        self.k_kkt(self.grid_nm, (_TPB,), (np.int32(self.n), np.int32(self.m), P.c, P.rl, P.ru,
+                                           P.lb, P.ub, x, y, Ax, ATy, *U, np.int32(scaled), out))
+        return out
+
+    def dist2(self, a, ar, b, br):
+        out = self.cp.zeros(2)
+        self.k_dist(self.grid_nm, (_TPB,), (np.int32(self.n), np.int32(self.m), a, ar, b, br, out))
+        return out
 
     def averages(self):
         w = self.sc[_WSUM]
@@ -677,20 +750,9 @@ class _Vecs:
         self.c0 = float(c0)
 
 
-def _kkt(xp, P: _Vecs, x, y, Ax, ATy):
-    """[primal objective, dual objective, |primal residual|_2, |dual residual|_2] as one array.
-
-    y is assumed to lie in the sign cone Y (true of every iterate and of their averages).
-    """
-    rp = Ax - xp.clip(Ax, P.rl, P.ru)
-    lam = P.c - ATy
-    lp = xp.maximum(lam, 0.0)
-    lm = xp.maximum(-lam, 0.0)
-    rd = xp.where(P.has_lb, 0.0, lp) + xp.where(P.has_ub, 0.0, lm)
-    pobj = P.c @ x + P.c0
-    dobj = (P.rl0 @ xp.maximum(y, 0.0) - P.ru0 @ xp.maximum(-y, 0.0)
-            + P.lb0 @ lp - P.ub0 @ lm + P.c0)
-    return xp.stack([xp.asarray(pobj), xp.asarray(dobj), xp.linalg.norm(rp), xp.linalg.norm(rd)])
+def _finish_kkt(v, c0):
+    """[primal objective, dual objective, |primal residual|_2, |dual residual|_2] from the sums."""
+    return np.array([v[0] + c0, v[1] + c0, np.sqrt(max(v[2], 0.0)), np.sqrt(max(v[3], 0.0))])
 
 
 def _rays(xp, P: _Vecs, dx, dy, Adx, ATdy):
@@ -739,13 +801,14 @@ def solve(model: Model, gpu: bool = False, tol: float = 1e-4, max_iter: int = 1_
           time_limit: float = np.inf, verbose: bool = False, check_every: int = 64,
           ruiz_iters: int = 10, pock_chambolle: bool = True, rescale: bool = True,
           restarts: bool = True, eps_infeasible: float = 1e-8, parallel: bool | None = None,
-          use_graph: bool = True) -> Result:
+          threads: int | None = None, use_graph: bool = True) -> Result:
     """Solve the LP (or the LP relaxation of a MIP) by restarted PDHG.
 
     tol          relative KKT tolerance (primal residual, dual residual, gap; see module doc)
     max_iter     PDHG attempts (each costs one A x and one A'y); rejected steps count
     check_every  attempts between termination / restart / infeasibility checks (cuPDLP: 64)
     parallel     CPU only: thread-parallel kernels; default by size (fork/join costs microseconds)
+    threads      CPU only: Numba thread count (default: Numba's, i.e. all logical cores)
     use_graph    GPU only: replay each block of attempts as a CUDA graph
     """
     t0 = time.perf_counter()
@@ -758,7 +821,12 @@ def solve(model: Model, gpu: bool = False, tol: float = 1e-4, max_iter: int = 1_
         be = _GPU(S, use_graph=use_graph)
     else:
         if parallel is None:
-            parallel = model.A.nnz >= 200_000
+            # measured crossover on a 6-core laptop: below ~30k nonzeros the thread pool's
+            # fork/join per pass costs more than it saves
+            parallel = model.A.nnz >= 30_000
+        if threads:
+            import numba
+            numba.set_num_threads(int(threads))
         be = _CPU(S, parallel)
     xp = be.xp
     with be.context():
@@ -799,7 +867,7 @@ def _run(model, S, be, xp, t0, tol, max_iter, time_limit, verbose, check_every, 
     be.set_step(1.0 / S.amax if S.amax > 0 else 1.0)       # PDLP: eta_0 = 1 / |A|_inf
     xr, yr = be.x.copy(), be.y.copy()                     # last restart point
     xref, yref = be.x.copy(), be.y.copy()                 # iterate at the last check (rays)
-    kkt_last = wkkt(be.to_host(be.kkt(Ps, be.x, be.y, be.Ax, be.ATy)), omega)
+    kkt_last = wkkt(_finish_kkt(be.to_host(be.kkt(Ps, be.x, be.y, be.Ax, be.ATy)), 0.0), omega)
     kkt_prev = np.inf
     setup = time.perf_counter() - t0
 
@@ -822,21 +890,25 @@ def _run(model, S, be, xp, t0, tol, max_iter, time_limit, verbose, check_every, 
         x, y, Ax, ATy = be.x, be.y, be.Ax, be.ATy
         have_avg = wsum > 0.0
         parts = [be.kkt(Ps, x, y, Ax, ATy), be.kkt(Po, x, y, Ax, ATy, U),
-                 xp.stack([xp.linalg.norm(x - xr), xp.linalg.norm(y - yr)])]
+                 be.dist2(x, xr, y, yr)]
         if have_avg:
             xa, ya = be.averages()
             Axa, ATya = be.matvec(xa), be.rmatvec(ya)
             parts += [be.kkt(Ps, xa, ya, Axa, ATya), be.kkt(Po, xa, ya, Axa, ATya, U),
-                      xp.stack([xp.linalg.norm(xa - xr), xp.linalg.norm(ya - yr)])]
-        # infeasibility: the difference of iterates since the last check (or restart)
-        dx = _cone_x(xp, Ps, x - xref)
-        dy = _cone_y(xp, Ps, y - yref)
-        parts.append(_rays(xp, Po, dx * ux, dy * uy, be.matvec(dx) * uax, be.rmatvec(dy) * uaty))
+                      be.dist2(xa, xr, ya, yr)]
+        # infeasibility: the difference of iterates since the last ray check (or restart)
+        check_rays = nchk % RAY_CHECK_EVERY == 0
+        if check_rays:
+            dx = _cone_x(xp, Ps, x - xref)
+            dy = _cone_y(xp, Ps, y - yref)
+            parts.append(_rays(xp, Po, dx * ux, dy * uy, be.matvec(dx) * uax, be.rmatvec(dy) * uaty))
         h = be.to_host(xp.concatenate(parts))
-        ks_cur, ko_cur, dist_cur = h[0:4], h[4:8], h[8:10]
+        ks_cur, ko_cur = _finish_kkt(h[0:4], 0.0), _finish_kkt(h[4:8], Po.c0)
+        dist_cur = np.sqrt(h[8:10])
         if have_avg:
-            ks_avg, ko_avg, dist_avg = h[10:14], h[14:18], h[18:20]
-        rays = h[-4:]
+            ks_avg, ko_avg = _finish_kkt(h[10:14], 0.0), _finish_kkt(h[14:18], Po.c0)
+            dist_avg = np.sqrt(h[18:20])
+        rays = h[-4:] if check_rays else np.array([0.0, np.inf, 0.0, np.inf])
         elapsed = time.perf_counter() - t0
 
         cands = [("current", ko_cur)] + ([("average", ko_avg)] if have_avg else [])
@@ -846,7 +918,7 @@ def _run(model, S, be, xp, t0, tol, max_iter, time_limit, verbose, check_every, 
             rp_, rd_, rg_ = rel(scored[0][2])
             print(f"{k:8d} {elapsed:8.2f}s  obj {scored[0][2][0]:+.8e}  rel p {rp_:.1e} d {rd_:.1e} "
                   f"g {rg_:.1e}  eta {eta:.2e} w {omega:.2e} restarts {nrest}")
-        if not np.all(np.isfinite(h[:-4])):
+        if not np.all(np.isfinite(h[:20 if have_avg else 10])):
             status = "numerical_error"
             best = ("current", x, y)
             final_rel = rel(ko_cur)
@@ -897,18 +969,26 @@ def _run(model, S, be, xp, t0, tol, max_iter, time_limit, verbose, check_every, 
             kkt_prev = np.inf
             since = 0
             nrest += 1
-        xref, yref = be.x.copy(), be.y.copy()
+        if do_restart or check_rays:
+            xref, yref = be.x.copy(), be.y.copy()
 
     # ---- the iterate to return ----
     if best is None:
-        # a limit was hit: return whichever of current / average has the smaller relative KKT
-        x, y = be.x, be.y
-        best = ("current", x, y)
-        v = ko_cur if k else None
-        if k and wsum > 0 and max(rel(ko_avg)) < max(rel(ko_cur)):
-            best = ("average", xa, ya)
-            v = ko_avg
-        final_rel = rel(v) if v is not None else final_rel
+        # a limit was hit: return whichever of current / average has the smaller relative KKT,
+        # evaluated afresh (the last check may have restarted, moving the current iterate)
+        _, wsum, _ = be.scalars()
+        cands = [("current", be.x, be.y, be.Ax, be.ATy)]
+        if wsum > 0:
+            xa, ya = be.averages()
+            cands.append(("average", xa, ya, be.matvec(xa), be.rmatvec(ya)))
+        scored = []
+        for lab, xx, yy, axx, atyy in cands:
+            v = _finish_kkt(be.to_host(be.kkt(Po, xx, yy, axx, atyy, U)), Po.c0)
+            scored.append((max(rel(v)), lab, xx, yy, v))
+        scored.sort(key=lambda t: t[0])
+        _, lab, xx, yy, v = scored[0]
+        best = (lab, xx, yy)
+        final_rel = rel(v)
     lab, xs, ys = best
     x_o = be.to_host(xs * ux)
     y_o = be.to_host(ys * uy)

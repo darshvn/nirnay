@@ -12,6 +12,7 @@ Components (with the references each follows):
   * domain propagation on the rows at every node (propagate.py)
   * primal heuristics: simple rounding at every node; at the root and periodically, fix the
     integers to rounded LP values and re-solve the LP for the continuous part
+  * Gomory mixed-integer cuts in rounds at the root (cuts.py); cuts that end up slack are dropped
   * pruning by bound, with the bound rounded up when the objective is integral on integer points
 
 Tolerances follow common practice: a value within 1e-6 of an integer is integral; the search
@@ -27,6 +28,7 @@ import numpy as np
 
 from ..lp.simplex import SimplexLP
 from ..model import Model, Result
+from .cuts import add_cuts, gmi_cuts
 from .propagate import propagate
 
 INT_TOL = 1e-6
@@ -47,8 +49,11 @@ class _Node:
 
 class BranchAndBound:
     def __init__(self, model: Model, time_limit=np.inf, node_limit=10**9, gap=1e-4,
-                 verbose=False, strong_candidates=8, strong_iters=60, reliability=4):
+                 verbose=False, strong_candidates=8, strong_iters=60, reliability=4, cut_rounds=20):
         self.model = model
+        self.orig = model
+        self.cut_rounds = cut_rounds
+        self.n_cuts = 0
         self.time_limit = time_limit
         self.node_limit = node_limit
         self.gap_tol = gap
@@ -87,7 +92,7 @@ class BranchAndBound:
         return self.inc_obj - max(1e-9, 1e-9 * abs(self.inc_obj)) if not self.int_obj else self.inc_obj - 1 + 1e-6
 
     def _try_incumbent(self, x, source):
-        m = self.model
+        m = self.orig
         xi = x.copy()
         xi[self.int_idx] = np.round(xi[self.int_idx])
         v = m.violation(xi)
@@ -201,6 +206,86 @@ class BranchAndBound:
         self.lp.set_structural_bounds(lb, ub)
         self.lp.load_basis(basis)
 
+    def _dive(self, x, lb, ub, max_depth=None, lp_budget=None):
+        """Fractional diving with propagation: repeatedly fix the least fractional integer to its
+        nearest value, propagate, re-solve the LP, until the LP is integral or infeasible
+        (Berthold, "Primal heuristics for mixed integer programs", ZIB diploma thesis 2006)."""
+        basis = self.lp.get_basis()
+        l2, u2 = lb.copy(), ub.copy()
+        is_int = self.model.integer
+        budget = lp_budget if lp_budget is not None else max(1000, 2 * self.lp_iters)
+        it0 = self.lp_iters
+        found = False
+        for _ in range(max_depth or 10 * len(self.int_idx) + 10):
+            frac_idx, frac = self._fractional(x)
+            if len(frac_idx) == 0:
+                found = self._try_incumbent(x, "diving")
+                break
+            if self.lp_iters - it0 > budget or time.perf_counter() > self.deadline:
+                break
+            dist = np.minimum(frac, 1 - frac)
+            k = int(np.argmin(dist))
+            j = frac_idx[k]
+            v = np.floor(x[j]) if frac[k] < 0.5 else np.ceil(x[j])
+            l2[j] = u2[j] = v
+            if not self._propagate(l2, u2):
+                break
+            st, o, x = self._solve_lp(np.where(is_int, l2, self.orig.lb), np.where(is_int, u2, self.orig.ub))
+            if st != "optimal" or o >= self._cutoff():
+                break
+        self.lp.set_structural_bounds(np.where(is_int, lb, self.orig.lb), np.where(is_int, ub, self.orig.ub))
+        self.lp.load_basis(basis)
+        return found
+
+    # ---------------------------------------------------------------- root cutting planes
+    def _root_cuts(self, lb, ub, obj, x):
+        base = self.model
+        m0 = base.m
+        history = [obj]
+        st = "optimal"
+        for rnd in range(self.cut_rounds):
+            if time.perf_counter() > self.deadline or not len(self._fractional(x)[0]):
+                break
+            cuts = gmi_cuts(self.lp, self.model, max_cuts=max(20, min(200, base.m // 2)))
+            if not cuts:
+                break
+            model = add_cuts(self.model, cuts)
+            lp = SimplexLP(_relaxed(model))
+            lp.set_structural_bounds(lb, ub)
+            r = lp.solve(time_limit=max(1.0, self.deadline - time.perf_counter()))
+            self.lp_iters += lp.iterations
+            if r.status != "optimal":
+                break                       # keep the last good relaxation
+            self.model, self.lp = model, lp
+            obj, x = self.orig.objective(r.x), r.x
+            history.append(obj)
+            self._try_incumbent(x, f"cut round {rnd + 1}")
+            if self.verbose:
+                print(f"  cut round {rnd + 1}: {len(cuts)} cuts, bound {self.orig.sense * obj:+.10g}")
+            # stop when three rounds together move the bound by less than 0.1% of its size
+            if len(history) > 3 and history[-1] - history[-4] < 1e-3 * max(1.0, abs(history[-1])):
+                break
+            if self.model.m > 4 * m0 + 1000:
+                break
+        # drop the cuts that are slack at the final root point; they only slow the nodes down
+        if self.model.m > m0:
+            act = self.model.A.matvec(x)
+            rows = np.arange(self.model.m)
+            rl = np.where(rows < m0, 0.0, self.model.rl)
+            keep = (rows < m0) | (act <= rl + 1e-6 * (1 + np.abs(rl)))
+            if not keep.all():
+                cuts = [(_row_dense(self.model, i), self.model.rl[i], 0.0) for i in np.flatnonzero(keep & (rows >= m0))]
+                self.model = add_cuts(base, cuts)
+                self.lp = SimplexLP(_relaxed(self.model))
+                self.lp.set_structural_bounds(lb, ub)
+                r = self.lp.solve(time_limit=max(1.0, self.deadline - time.perf_counter()))
+                self.lp_iters += self.lp.iterations
+                st, obj, x = r.status, self.orig.objective(r.x), r.x
+            self.n_cuts = self.model.m - m0
+        AT = self.model.AT
+        self.Rp, self.Rj, self.Rv = AT.colptr, AT.rowidx, AT.vals
+        return st, obj, x
+
     # ---------------------------------------------------------------- main loop
     def solve(self) -> Result:
         t0 = time.perf_counter()
@@ -220,14 +305,21 @@ class BranchAndBound:
             return self._result("unbounded", t0, -np.inf)
         if st != "optimal":
             return self._result(st, t0, -np.inf)
+        if self.cut_rounds:
+            self._try_incumbent(x, "root LP")
+            st, obj, x = self._root_cuts(lb0, ub0, obj, x)
+            if st != "optimal":
+                return self._result("infeasible" if st == "infeasible" else st, t0, np.inf)
         root_bound = self._bound_up(obj)
         if self.verbose:
             print(f"  root LP {m.sense * obj:+.10g}, {len(self._fractional(x)[0])} fractional")
         self._try_incumbent(x, "root LP")
         self._fix_and_solve(x, lb0, ub0)
+        if self.incumbent is None:
+            self._dive(x, lb0.copy(), ub0.copy())
 
         counter = itertools.count()
-        heap = []          # (bound, tie, node)
+        heap = []          # (bound, -depth, tie, node): ties go to the deepest node
         node = _Node(root_bound, 0, lb0, ub0, None, None)
         current = (node, st, obj, x)        # a node whose LP is already solved
         best_bound = root_bound
@@ -245,7 +337,7 @@ class BranchAndBound:
                     heapq.heappop(heap)
                 if not heap:
                     break
-                bnd, _, node = heapq.heappop(heap)
+                bnd, _, _, node = heapq.heappop(heap)
                 lb, ub = node.lb, node.ub
                 if not self._propagate(lb, ub):
                     self.nodes += 1
@@ -271,6 +363,8 @@ class BranchAndBound:
                 continue
             if self._try_incumbent(np.where(np.isin(np.arange(m.n), self.int_idx), np.round(x), x), "rounding"):
                 pass
+            if self.incumbent is None and self.nodes % 50 == 0:
+                self._dive(x, node.lb.copy(), node.ub.copy())
             if self.nodes % 100 == 0:
                 self._fix_and_solve(x, np.where(is_int, node.lb, m.lb), np.where(is_int, node.ub, m.ub))
             lb, ub = node.lb, node.ub
@@ -287,7 +381,7 @@ class BranchAndBound:
             up = _Node(obj_b, node.depth + 1, up_lb, ub.copy(), basis, (j, 1, f))
             # plunge into the child the pseudocosts favour; queue the other
             first, second = (up, down) if f >= 0.5 else (down, up)
-            heapq.heappush(heap, (second.bound, next(counter), second))
+            heapq.heappush(heap, (second.bound, -second.depth, next(counter), second))
             if not self._propagate(first.lb, first.ub):
                 self.nodes += 1
                 continue
@@ -306,7 +400,7 @@ class BranchAndBound:
                 if st2 == "optimal":
                     first.bound = self._bound_up(obj2)
                     first.basis = self.lp.get_basis() if len(heap) < 20000 else None
-                    heapq.heappush(heap, (first.bound, next(counter), first))
+                    heapq.heappush(heap, (first.bound, -first.depth, next(counter), first))
             if self.verbose and self.nodes % 200 == 0:
                 lo_b = min(heap[0][0] if heap else np.inf, self._bound_up(obj))
                 print(f"  nodes {self.nodes:7d}  open {len(heap):6d}  bound {m.sense * lo_b:+.10g}  "
@@ -337,7 +431,14 @@ class BranchAndBound:
         return Result(status=status, x=x, objective=obj, bound=m.sense * bound if np.isfinite(bound) else
                       m.sense * bound, iterations=self.lp_iters, nodes=self.nodes,
                       time=time.perf_counter() - t0, method="branch-and-bound",
-                      info={"lp_iterations": self.lp_iters})
+                      info={"lp_iterations": self.lp_iters, "cuts": self.n_cuts})
+
+
+def _row_dense(model: Model, i: int) -> np.ndarray:
+    AT = model.AT
+    g = np.zeros(model.n)
+    g[AT.rowidx[AT.colptr[i]:AT.colptr[i + 1]]] = AT.vals[AT.colptr[i]:AT.colptr[i + 1]]
+    return g
 
 
 def _relaxed(model: Model) -> Model:

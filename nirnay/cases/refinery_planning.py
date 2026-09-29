@@ -48,8 +48,11 @@ SPEC = {
     "MS95": {"density": (0.720, 0.775), "ron_min": 95.0},
     # IS 1460:2017 Table 1 (BS VI): density 810-845 kg/m3, cetane index >= 46, sulphur <= 10 mg/kg
     "HSD": {"density": (0.810, 0.845), "ci_min": 46.0},
-    # IS 1571:2018 Table 1: density 775-840 kg/m3, total sulphur <= 0.30 % mass, smoke point >= 25 mm
-    "ATF": {"density": (0.775, 0.840), "sulphur_max": 0.30, "smoke_min": 25.0},
+    # IS 1571:2018 Table 1: density 775-840 kg/m3, total sulphur <= 0.30 % mass, and either
+    # smoke point >= 25.0 mm (pool ATF_A) or smoke point >= 18.0 mm with naphthalenes <= 3.00 % v/v
+    # (pool ATF_B). The two pools share the ATF market limit and price.
+    "ATF_A": {"density": (0.775, 0.840), "sulphur_max": 0.30, "smoke_min": 25.0},
+    "ATF_B": {"density": (0.775, 0.840), "sulphur_max": 0.30, "smoke_min": 18.0, "naph_max": 3.00},
 }
 
 # Exxon Platoform example refinery (K.H. Palmer, A Model Management Framework for Mathematical
@@ -67,36 +70,49 @@ COMPONENT = {  # RON and density (t/m3) of converted streams, FAWLEY prop table
 }
 
 CASE_INFO = {
-    "title": "Refinery crude selection and BS-VI product blending LP (MRPL-sized, 13 crudes)",
+    "title": "Refinery crude selection and BS-VI product blending LP (MRPL-sized CDUs, 8 SPR crudes)",
     "sector": "Refinery planning / crude blending",
     "class": "LP",
     "sources": [
         {"what": "Crude assays: cut yields, density, sulphur, RON, cetane index, smoke point "
                  "(8 Strategic Petroleum Reserve streams)",
-         "name": "US DOE Office of Petroleum Reserves, SPR crude oil assays",
-         "url": "https://www.energy.gov/ceser/strategic-petroleum-reserve-crude-oil-assays",
+         "name": "US DOE Strategic Petroleum Reserve, Crude Oil Analysis (assay files 2024/2026)",
+         "url": "https://www.spr.doe.gov/reports/crude_oil_assays.html",
          "licence": "US Government work, public domain (17 U.S.C. 105)"},
-        {"what": "Crude assays for Upper Zakum, Azeri BTC, CPC Blend, Erha, Qua Iboe",
-         "name": "ExxonMobil crude oil assays",
-         "url": "https://corporate.exxonmobil.com/what-we-do/energy-supply/crude-oil-and-condensates/assays",
-         "licence": "published by ExxonMobil for information, no warranty; subject to exxonmobil.com "
-                    "terms of use (no open licence). Only derived numbers are used"},
-        {"what": "BS-VI product specifications",
-         "name": "BIS IS 2796:2017 (motor gasoline), IS 1460:2017 (automotive diesel), "
-                 "IS 1571:2018 (aviation turbine fuel), Table 1 of each, with amendments checked",
-         "url": "https://law.resource.org/pub/in/bis/",
-         "licence": "Indian Standards made public (Public.Resource.Org); BIS copyright"},
+        {"what": "OPTIONAL (include_exxonmobil=True): assays of Upper Zakum, Azeri BTC, CPC Blend, "
+                 "Erha, Qua Iboe",
+         "name": "ExxonMobil, Assays available for download",
+         "url": "https://corporate.exxonmobil.com/what-we-do/energy-supply/crude-trading/crude-oil-assays",
+         "licence": "ExxonMobil terms and conditions: redistribution only of complete, unaltered "
+                    "documents; not an open licence. Not used in the default instance"},
+        {"what": "BS-VI motor gasoline limits (density, RON)",
+         "name": "BIS IS 2796:2017 Motor Gasoline - Specification, Table 1 (amendments 1-4 checked)",
+         "url": "https://archive.org/details/gov.in.is.2796.2017",
+         "licence": "BIS copyright; copy made public by Public.Resource.Org; limits cited as facts"},
+        {"what": "BS-VI automotive diesel limits (density, cetane index)",
+         "name": "BIS IS 1460:2017 Automotive Diesel Fuel - Specification, Table 1 (amendments 1-2 checked)",
+         "url": "https://archive.org/details/gov.in.is.1460.2017",
+         "licence": "as above"},
+        {"what": "Jet A-1 limits (density, sulphur, smoke point, naphthalenes)",
+         "name": "BIS IS 1571:2018 Aviation Turbine Fuels, Kerosine Type, Jet A-1, Table 1 "
+                 "(amendments 1-4 checked)",
+         "url": "https://archive.org/details/gov.in.is.1571.2018",
+         "licence": "as above"},
+        {"what": "Cross-check of MS and HSD BS-VI limits",
+         "name": "HPCL, MS / HSD BS-VI specifications sheet",
+         "url": "https://www.hindustanpetroleum.com/images/pdf/MS_HSD_BS-VI_SPECS.pdf",
+         "licence": "public document of HPCL"},
         {"what": "Crude and product prices, FY 2024-25 averages",
          "name": "PPAC, Snapshot of India's Oil & Gas data, August 2026, table 25",
-         "url": "https://ppac.gov.in/",
+         "url": "https://ppac.gov.in/download.php?file=rep_studies/1790418308_Final_Snapshot_of_Indias_Oil_Gas_data_augpages.pdf",
          "licence": "Government of India publication (GODL - India)"},
         {"what": "CDU capacities 5.0 / 7.2 / 3.3 MMTPA",
          "name": "MRPL, PACE project brief summary (environmental clearance submission)",
-         "url": "https://environmentclearance.nic.in/",
+         "url": "https://environmentclearance.nic.in/DownloadPfdFile.aspx?FileName=ME2hD5LK2d7ehBlLNo%2Fi1jG0gk46GQu53wzMRCyOnEsBrRNcPfxRnyv294r0VHaVrpVquU045MmQwsjxIQAa9FW98gf7Rm4B1VExHqd8gV7yectH9Sag5gTT3LgzAByZ&FilePath=93ZZBm8LWEXfg+HAlQix2fE2t8z%2FpgnoBhDlYdZCxzXmG8GlihX6H9UP1HygCn3pCkAF2zPFXFQNqA4krKa1Aw%3D%3D",
          "licence": "public government filing"},
         {"what": "FY 2024-25 product output (market limits) and crude processed",
-         "name": "MRPL Annual Report 2024-25, Directors' report, sections 4 and 6",
-         "url": "https://mrpl.co.in/",
+         "name": "MRPL 37th Annual Report 2024-25, Directors' report, sections 4 and 6 (pp. 60-61)",
+         "url": "https://admin.mrpl.co.in/img/UploadedFiles/AnnualReport/Files/161636e409d7464996e216b0ffbb5bba.pdf",
          "licence": "public company annual report"},
         {"what": "Reformer and FCC yields and component RON/density",
          "name": "GAMS Model Library, FAWLEY (Platoform example refinery, Palmer 1984)",
@@ -104,7 +120,7 @@ CASE_INFO = {
          "licence": "GAMS Development Corp. copyright; no licence stated. Illustrative data from "
                     "an Exxon monograph; used as published numbers with citation"},
     ],
-    "real": ["13 crude assays (cut yields and qualities)", "BIS BS-VI limits used",
+    "real": ["8 SPR crude assays (cut yields and qualities)", "BIS BS-VI limits used",
              "PPAC FY 2024-25 international prices", "MRPL CDU capacities and FY 2024-25 output"],
     "assumed": [
         "all crudes are priced at the Indian basket average (no public grade differentials)",
@@ -115,7 +131,9 @@ CASE_INFO = {
         "10 mg/kg sulphur limit with no change in mass, density, RON or cetane index",
         "reformer and FCC capacities are not public and are left unbounded; refinery fuel has "
         "zero value; operating costs are not included",
-        "cetane index, RON and smoke point blend linearly by volume (a standard approximation)",
+        "cetane index, RON, smoke point and naphthalenes blend linearly by volume (a standard "
+        "approximation); ATF freezing point (max -47 C) is not modelled because it does not blend "
+        "linearly and no public blending index was found",
         "fuel oil has no sulphur limit (IS 1593 is only available as a scanned image)",
         "market limits for MS, HSD, ATF and LPG are MRPL's FY 2024-25 output of each",
         "assay cut yields are normalised to 100 % by mass",
@@ -123,8 +141,8 @@ CASE_INFO = {
 }
 
 
-def crude_data(crudes=None):
-    data = load_assays()
+def crude_data(crudes=None, include_exxonmobil: bool = False):
+    data = load_assays(include_exxonmobil)
     names = list(data) if crudes is None else list(crudes)
     out = {}
     for c in names:
@@ -136,11 +154,13 @@ def crude_data(crudes=None):
 
 
 def add_refinery(B: Builder, crudes: dict, tag: str = "", cdu_scale: float = 1.0,
-                 market_scale: float = 1.0, crude_cols=None):
+                 market_scale: float = 1.0, crude_cols=None, stocked=()):
     """Adds one period of the refinery network to builder B; returns the dict of key columns.
     cdu_scale scales CDU capacities (e.g. days/365 for a month); market_scale the market limits.
-    If crude_cols is given ({crude: column}), those columns are the crude charged in this period
-    (the caller links them to purchases); otherwise purchase columns are created here."""
+    If crude_cols is given ({crude: (column, kt per unit)}), the crude charged in this period
+    equals column x kt-per-unit and carries no cost here (the caller prices the column).
+    Products in `stocked` get no market limit here: the caller adds inventories and sales.
+    Revenue is booked on production (exact when prices are constant and final stock is zero)."""
     t = tag
     P = PRICE
     cols = {"crude": {}, "sales": {}}
@@ -155,12 +175,13 @@ def add_refinery(B: Builder, crudes: dict, tag: str = "", cdu_scale: float = 1.0
         B.le(f"cdu_cap{t}_{u}", [x[c, u] for c in crudes], 1.0, cap * cdu_scale)
     if crude_cols:
         for c in crudes:
-            B.eq(f"crude_link{t}_{c}".replace(" ", "_"), [x[c, u] for u in CDU_CAPACITY] + [crude_cols[c]],
-                 [1.0] * len(CDU_CAPACITY) + [-1.0], 0.0)
+            col, kt = crude_cols[c]
+            B.eq(f"crude_link{t}_{c}".replace(" ", "_"), [x[c, u] for u in CDU_CAPACITY] + [col],
+                 [1.0] * len(CDU_CAPACITY) + [-kt], 0.0)
     cols["crude"] = x
 
     # pools: list of (column, mass-based props) per product
-    pool = {p: [] for p in ("MS91", "MS95", "HSD", "ATF", "LPG", "NAPHTHA", "FO")}
+    pool = {p: [] for p in ("MS91", "MS95", "HSD", "ATF_A", "ATF_B", "LPG", "NAPHTHA", "FO")}
     ref_feed, fcc_feed = [], {"low": [], "high": []}
 
     def route(c, s, dests):
@@ -186,7 +207,9 @@ def add_refinery(B: Builder, crudes: dict, tag: str = "", cdu_scale: float = 1.0
         route(c, "HN", hn_dest)
         kero_dest = ["FO"]
         if d["KERO"]["smoke_point_mm"] is not None and d["KERO"]["sulphur_wt_pct"] is not None:
-            kero_dest.append("ATF")
+            kero_dest.append("ATF_A")
+            if d["KERO"]["naphthalenes_vol_pct"] is not None:
+                kero_dest.append("ATF_B")
         if d["KERO"]["cetane_index"] is not None:
             kero_dest.append("HSD")
         route(c, "KERO", kero_dest)
@@ -244,10 +267,13 @@ def add_refinery(B: Builder, crudes: dict, tag: str = "", cdu_scale: float = 1.0
             B.ge(f"cetane{t}_{p}", js, [(d["cetane_index"] - spec["ci_min"]) / d["density"] for _, d in comps], 0.0)
         if "smoke_min" in spec:
             B.ge(f"smoke{t}_{p}", js, [(d["smoke_point_mm"] - spec["smoke_min"]) / d["density"] for _, d in comps], 0.0)
+        if "naph_max" in spec:
+            B.le(f"naphthalenes{t}_{p}", js, [(d["naphthalenes_vol_pct"] - spec["naph_max"]) / d["density"] for _, d in comps], 0.0)
         if "sulphur_max" in spec:
             B.le(f"sulphur{t}_{p}", js, [d["sulphur_wt_pct"] - spec["sulphur_max"] for _, d in comps], 0.0)
         # value: $/bbl products by volume, $/t products by mass (objective in thousand $)
-        key = {"MS91": "MS_usd_bbl", "MS95": "MS_usd_bbl", "HSD": "HSD_usd_bbl", "ATF": "ATF_usd_bbl"}.get(p)
+        key = {"MS91": "MS_usd_bbl", "MS95": "MS_usd_bbl", "HSD": "HSD_usd_bbl", "ATF_A": "ATF_usd_bbl",
+               "ATF_B": "ATF_usd_bbl"}.get(p)
         if key:
             coef = [-PRICE[key] / (d["density"] * M3_PER_BBL) for _, d in comps]   # k$ per kt
         else:
@@ -255,13 +281,18 @@ def add_refinery(B: Builder, crudes: dict, tag: str = "", cdu_scale: float = 1.0
         for j, v in zip(js, coef):
             B.add_cost(j, v)
         mkt = MRPL_OUTPUT_2024_25.get(p)
-        if mkt is not None:
+        if mkt is not None and p not in stocked:
             B.le(f"market{t}_{p}", js, 1.0, mkt * market_scale)
         cols["sales"][p] = js
+    cols["sales"]["ATF"] = cols["sales"]["ATF_A"] + cols["sales"]["ATF_B"]
+    if "ATF" not in stocked:
+        B.le(f"market{t}_ATF", cols["sales"]["ATF"], 1.0, MRPL_OUTPUT_2024_25["ATF"] * market_scale)
     return cols
 
 
-def build(crudes=None):
+def build(crudes=None, include_exxonmobil: bool = False):
+    """Default: the 8 public-domain SPR crudes. include_exxonmobil=True adds Upper Zakum, Azeri
+    BTC, CPC Blend, Erha and Qua Iboe, read from the unaltered ExxonMobil files (needs openpyxl)."""
     B = Builder("refinery_planning_mrpl")          # minimise cost = crude cost - product value
-    add_refinery(B, crude_data(crudes))
+    add_refinery(B, crude_data(crudes, include_exxonmobil))
     return B.to_model()

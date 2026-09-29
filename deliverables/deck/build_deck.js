@@ -19,14 +19,29 @@ function readCsv(file) {
 const solved = (rows) => rows.filter((r) => r.status === "optimal" && r.rel_err !== "" && r.rel_err !== "nan" && parseFloat(r.rel_err) < 1e-6);
 const ipm1 = readCsv(path.join(ROOT, "results", "netlib_ipm_v1.csv"));
 const ipm2 = readCsv(path.join(ROOT, "results", "netlib_ipm_v2.csv"));
-const spx = readCsv(path.join(ROOT, "results", "netlib_simplex_v1.csv"));
+const spx2 = readCsv(path.join(ROOT, "results", "netlib_simplex_v2.csv"));
+const spx = spx2.length >= 80 ? spx2 : readCsv(path.join(ROOT, "results", "netlib_simplex_v1.csv"));
 const ipmBest = ipm2.length >= 80 ? ipm2 : ipm1;
 const nIpm = solved(ipmBest).length, nIpmTried = ipmBest.length;
 const nSpx = solved(spx).length, nSpxTried = spx.length;
 const union = new Set([...solved(ipmBest), ...solved(spx)].map((r) => r.name));
 const nUnion = union.size;
 const TOTAL = 90;
-console.log(`IPM ${nIpm}/${nIpmTried}, simplex ${nSpx}/${nSpxTried}, either ${nUnion}/${TOTAL}`);
+// MILP: MIPLIB 3, solved = proven optimal within the 1e-4 gap and agreeing with HiGHS to 1e-4
+const latest = (...names) => { for (const n of names) { const r = readCsv(path.join(ROOT, "results", n)); if (r.length) return r; } return []; };
+const okErr = (r, tol) => r.rel_err !== "" && r.rel_err !== "nan" && parseFloat(r.rel_err) <= tol;
+const mip = latest("miplib3_bnb_v2.csv", "miplib3_bnb_v1.csv");
+const nMip = mip.filter((r) => r.status === "optimal" && okErr(r, 1e-4)).length;
+const nMipRef = mip.filter((r) => r.ref_status === "Optimal").length;
+const MIPTOT = mip.length || 64;
+const mipLimit = 60;
+// QP: Maros-Meszaros, solved = optimal and within 1e-6 of Clarabel
+const qp = latest("maros_qpipm_v2.csv", "maros_qpipm_v1.csv");
+const nQp = qp.filter((r) => r.status === "optimal" && okErr(r, 1e-6)).length;
+const nQpRef = qp.filter((r) => r.ref_status === "Solved").length;
+const QPTOT = qp.length || 138;
+const PDLP_BUILT = fs.existsSync(path.join(ROOT, "results", "netlib_pdlp_gpu.csv"));
+console.log(`IPM ${nIpm}/${nIpmTried}, simplex ${nSpx}/${nSpxTried}, either ${nUnion}/${TOTAL}; MIP ${nMip}/${MIPTOT} (HiGHS ${nMipRef}); QP ${nQp}/${QPTOT} (Clarabel ${nQpRef}); PDLP ${PDLP_BUILT}`);
 
 // ---------------------------------------------------------------- palette (from the SIH logo)
 const NAVY = "1F2A44", SAFFRON = "E8702A", GREEN = "1E8C45", INK = "2B2F36", MUTED = "5B6770",
@@ -102,14 +117,15 @@ function card(slide, x, y, w, h, fill) {
   card(s, 7.75, 2.3, 5.1, 2.75, CARD);
   s.addText("MEASURED ON 30 SEP 2026", { x: 8.0, y: 2.42, w: 4.6, h: 0.3, fontFace: HF, fontSize: 11, bold: true, color: MUTED, charSpacing: 1, margin: 0, isTextBox: true });
   const stats = [
-    [`${nUnion} / ${TOTAL}`, "Netlib LPs solved to the known optimum by at least one NIRNAY engine"],
-    [`${nIpm} / ${TOTAL}`, "by our interior-point method alone (Mehrotra predictor-corrector)"],
-    ["0", "optimisation libraries inside: sparse LU, Cholesky and orderings are ours"],
+    [`${nSpx} / ${TOTAL}`, "Netlib LPs solved to the known optimum by our dual simplex"],
+    [`${nMip} / ${MIPTOT}`, `MIPLIB 3 problems proven optimal in ${mipLimit} s by our branch-and-bound`],
+    [`${nQp} / ${QPTOT}`, "Maros–Mészáros convex QPs solved by our QP interior point"],
+    ["0", "optimisation libraries inside: LU, Cholesky, LDLᵀ and orderings are ours"],
   ];
   stats.forEach(([big, small], i) => {
-    const y = 2.8 + i * 0.74;
-    s.addText(big, { x: 8.0, y, w: 1.75, h: 0.62, fontFace: HF, fontSize: 26, bold: true, color: i === 2 ? GREEN : SAFFRON, margin: 0, valign: "middle", isTextBox: true });
-    s.addText(small, { x: 9.8, y, w: 2.9, h: 0.62, fontFace: BF, fontSize: 11.5, color: INK, margin: 0, valign: "middle", isTextBox: true });
+    const y = 2.75 + i * 0.56;
+    s.addText(big, { x: 8.0, y, w: 1.85, h: 0.5, fontFace: HF, fontSize: 22, bold: true, color: i === 3 ? GREEN : SAFFRON, margin: 0, valign: "middle", isTextBox: true });
+    s.addText(small, { x: 9.9, y, w: 2.85, h: 0.5, fontFace: BF, fontSize: 10.5, color: INK, margin: 0, valign: "middle", isTextBox: true });
   });
 
   // bottom: innovation
@@ -118,7 +134,7 @@ function card(slide, x, y, w, h, fill) {
     ["Three engines, one decision", "Simplex gives exact vertices and warm starts for MILP; interior point gives accuracy on large sparse LPs; GPU PDLP gives scale. The solver chooses."],
     ["Every factorisation is ours", "Sparse LU with basis repair, sparse Cholesky with minimum-degree ordering. Auditable end to end: no black box in the loop."],
     ["Built for bad models", "Scaling, cost perturbation, bound-flipping and Harris ratio tests, a stall-aware interior point: tested on Netlib's degenerate and ill-conditioned set."],
-    ["Benchmarks MRPL recognises", "Netlib, MIPLIB and Maros–Mészáros, plus public refinery-blending, unit-commitment and supply-chain models, each checked against HiGHS."],
+    ["Benchmarks MRPL recognises", "Netlib, MIPLIB and Maros–Mészáros, plus public refinery-blending, unit-commitment and supply-chain models, each checked against a reference solver."],
   ];
   inno.forEach(([h, b], i) => {
     const x = 0.5 + i * 3.1;
@@ -129,7 +145,8 @@ function card(slide, x, y, w, h, fill) {
   });
   s.addNotes(
     "THE IDEA (60s). Start from the dependency, not the code: every refinery plan and blend in India runs through CPLEX, Gurobi or Xpress. Recurring cost, and nobody here can see inside.\n" +
-    `Then the proof it is real: our interior point already solves ${nIpm} of the 90 Netlib LPs to the known optimum, and ${nUnion} are solved by at least one of our engines. No solver library is inside; the LU and Cholesky factorisations are ours.\n` +
+    `Then the proof it is real: our dual simplex solves all ${nSpx} of the ${TOTAL} Netlib LPs to the known optimum, branch-and-bound proves ${nMip} of ${MIPTOT} MIPLIB 3 problems optimal in ${mipLimit} seconds, and the QP interior point solves ${nQp} of ${QPTOT} Maros–Mészáros QPs. No solver library is inside; the LU, Cholesky and LDLᵀ factorisations are ours.
+` +
     "Land the four claims briefly. Spend the time on the first: we do not pick one algorithm, we ship three, because simplex, interior point and GPU PDLP each win on different problems, and a sovereign solver must not be weak where MRPL's models live.");
 }
 
@@ -161,7 +178,7 @@ function card(slide, x, y, w, h, fill) {
   const eng = [
     ["Dual simplex", "Own sparse LU + eta updates · dual steepest edge · bound-flipping ratio test · perturbation against degeneracy", "BUILT"],
     ["Interior point", "Mehrotra predictor-corrector · own sparse Cholesky with minimum-degree ordering · regularisation", "BUILT"],
-    ["PDLP  (GPU)", "Restarted primal-dual hybrid gradient · adaptive steps · only mat-vec products, so it scales on CUDA", "IN BUILD"],
+    ["PDLP  (GPU)", "Restarted primal-dual hybrid gradient · adaptive steps · only mat-vec products, so it scales on CUDA", PDLP_BUILT ? "BUILT" : "IN BUILD"],
   ];
   const ew = (W - 0.3) / 3;
   eng.forEach(([h, b, st], i) => {
@@ -173,8 +190,8 @@ function card(slide, x, y, w, h, fill) {
   });
   y += 1.45;
   const lower = [
-    ["MILP", "Branch-and-bound on warm-started dual simplex · reliability branching · propagation · Gomory cuts · heuristics", "E6F3EA", GREEN, "IN BUILD"],
-    ["QP", "Convex QP by interior point on the same Cholesky core; PDHG for large sparse QPs", "E6F3EA", GREEN, "IN BUILD"],
+    ["MILP", "Branch-and-bound on warm-started dual simplex · reliability branching · propagation · Gomory cuts · diving", "E6F3EA", GREEN, "BUILT"],
+    ["QP", "Convex QP by interior point on the quasi-definite augmented system, own sparse LDLᵀ", "E6F3EA", GREEN, "BUILT"],
     ["KERNELS", "Numba-compiled native machine code · CUDA via CuPy on the GPU · no solver library anywhere", "EEF0F3", NAVY, "BUILT"],
   ];
   lower.forEach(([k, v, bg, fg, st]) => {
@@ -197,35 +214,37 @@ function card(slide, x, y, w, h, fill) {
   s.addText("HOW IT IS CHECKED", { x: RX, y: 3.55, w: RW, h: 0.3, fontFace: HF, fontSize: 11, bold: true, color: MUTED, charSpacing: 1, margin: 0, isTextBox: true });
   s.addText([
     { text: "Netlib LP (90), MIPLIB, Mittelmann, Maros–Mészáros QP: the sets the problem statement names", options: { bullet: true, breakLine: true } },
-    { text: "Every instance re-solved by HiGHS as the reference; relative error and residuals logged", options: { bullet: true, breakLine: true } },
+    { text: "Every instance re-solved by a reference (HiGHS for LP and MILP, Clarabel for QP); errors and residuals logged", options: { bullet: true, breakLine: true } },
     { text: "Hard cases on purpose: degenerate (DEGEN3), ill-conditioned (PILOT, GREENBEA), weak relaxations (MIPLIB)", options: { bullet: true } },
   ], { x: RX, y: 3.9, w: RW, h: 2.4, fontFace: BF, fontSize: 12, color: INK, paraSpaceAfter: 3, valign: "top", margin: 0, isTextBox: true });
   s.addNotes(
     "TECHNICAL APPROACH (75s). Walk the stack top to bottom, one sentence each.\n" +
     "The point to land: the problem statement forbids building on an existing solver, so the three places where solvers usually borrow code are the ones we wrote ourselves: the sparse LU under the simplex, the sparse Cholesky under the interior point, and the orderings that keep both sparse.\n" +
     "Then why three LP engines: simplex gives an exact vertex and warm starts, which branch-and-bound needs; interior point is the most reliable on big sparse LPs; PDLP needs only matrix-vector products, which is exactly what a GPU is good at. The published evidence (cuPDLP, Lu & Yang 2023) is that GPU first-order methods win on very large LPs at moderate accuracy and lose at high accuracy, so we keep all three.\n" +
-    "Close on verification: every benchmark run is re-solved by HiGHS as the reference.
-" +
-    "Status, if asked: input, scaling, dual simplex, interior point and the kernels run today (the green BUILT chips). The GPU PDLP engine, branch-and-bound and QP are being built now; say so plainly.");
+    "Close on verification: every benchmark run is re-solved by a reference solver (HiGHS for LP and MILP, Clarabel for QP).\n" +
+    "Status, if asked: the green BUILT chips run today and are benchmarked. " + (PDLP_BUILT ? "" : "The GPU PDLP engine is being built now; say so plainly. ") +
+    "Presolve is partial: scaling and simple reductions only.");
 }
 
 // ================================================================= 4. FEASIBILITY AND VIABILITY
 {
   const s = pres.addSlide();
   frame(s, "FEASIBILITY AND VIABILITY", 4);
-  s.addText("Not a plan: the core already runs. Netlib LPs solved to the known optimum (relative error < 1e-6 against HiGHS):",
+  s.addText("Not a plan: the core already runs. Share of each public benchmark set solved, NIRNAY against the reference solver on the same laptop:",
     { x: 0.5, y: 1.05, w: 6.9, h: 0.6, fontFace: BF, fontSize: 13, color: INK, margin: 0, isTextBox: true });
-  s.addChart(pres.charts.BAR, [{
-    name: "Solved", labels: ["Interior point", "Dual simplex", "Either engine", "HiGHS (reference)"],
-    values: [nIpm, nSpx, nUnion, TOTAL],
-  }], {
-    x: 0.5, y: 1.65, w: 6.9, h: 3.2, barDir: "bar", chartColors: [SAFFRON, NAVY, GREEN, "9AA5B1"],
-    showValue: true, dataLabelPosition: "outEnd", dataLabelColor: INK, dataLabelFontSize: 12,
-    valAxisMinVal: 0, valAxisMaxVal: 100, valAxisLabelColor: MUTED, catAxisLabelColor: INK, catAxisLabelFontSize: 12,
-    valGridLine: { color: "E5E8EC", size: 0.5 }, catGridLine: { style: "none" }, showLegend: false,
-    showTitle: true, title: `Netlib LP collection (${TOTAL} problems)`, titleFontSize: 13, titleColor: NAVY,
+  const pct = (a, b) => (b ? Math.round((1000 * a) / b) / 10 : 0);
+  const cats = [`Netlib LP (${TOTAL})`, `MIPLIB 3, ${mipLimit} s (${MIPTOT})`, `Maros–Mészáros QP (${QPTOT})`];
+  s.addChart(pres.charts.BAR, [
+    { name: "NIRNAY", labels: cats, values: [pct(nSpx, TOTAL), pct(nMip, MIPTOT), pct(nQp, QPTOT)] },
+    { name: "Reference (HiGHS / Clarabel)", labels: cats, values: [100, pct(nMipRef, MIPTOT), pct(nQpRef, QPTOT)] },
+  ], {
+    x: 0.5, y: 1.65, w: 6.9, h: 3.2, barDir: "bar", barGrouping: "clustered", chartColors: [SAFFRON, "9AA5B1"],
+    showValue: true, dataLabelPosition: "outEnd", dataLabelColor: INK, dataLabelFontSize: 11, dataLabelFormatCode: '0"%"',
+    valAxisMinVal: 0, valAxisMaxVal: 115, valAxisHidden: true, catAxisOrientation: "maxMin", catAxisLabelColor: INK, catAxisLabelFontSize: 11,
+    valGridLine: { style: "none" }, catGridLine: { style: "none" }, showLegend: true, legendPos: "b", legendFontSize: 10,
+    showTitle: true, title: "Problems solved to the reference optimum (%)", titleFontSize: 13, titleColor: NAVY,
   });
-  s.addText(`Simplex sweep ${nSpxTried < TOTAL ? `covers ${nSpxTried} of ${TOTAL} so far` : "complete"}. Solutions agree with HiGHS to 1e-11 to 1e-15 where solved.`,
+  s.addText(`LP within 1e-6 of HiGHS (dual simplex ${nSpx}, interior point ${nIpm}); MILP proven optimal within 1e-4; QP within 1e-6 of Clarabel.`,
     { x: 0.5, y: 4.9, w: 6.9, h: 0.35, fontFace: BF, fontSize: 10.5, italic: true, color: MUTED, margin: 0, isTextBox: true });
 
   s.addText("WHY IT IS BUILDABLE", { x: 0.5, y: 5.35, w: 6.9, h: 0.3, fontFace: HF, fontSize: 11, bold: true, color: NAVY, charSpacing: 1, margin: 0, isTextBox: true });
@@ -242,7 +261,7 @@ function card(slide, x, y, w, h, fill) {
     ["Python slower than C++ solvers", "Hot loops are Numba-compiled native code; the kernel boundary is clean enough to port to C++ later"],
     ["Numerical breakdown on bad models", "Three engines as fallbacks for each other; scaling, perturbation, basis repair, stall detection"],
     ["GPU not always available", "PDLP runs on CPU with the same code path; GPU is an accelerator, never a requirement"],
-    ["Claims a jury cannot check", "Every number regenerates from one script against HiGHS on public benchmark files"],
+    ["Claims a jury cannot check", "Every number regenerates from one script against HiGHS and Clarabel on public benchmark files"],
   ];
   risks.forEach(([r, m], i) => {
     const y = 1.6 + i * 1.05;
@@ -251,7 +270,7 @@ function card(slide, x, y, w, h, fill) {
     s.addText(m, { x: RX + 0.15, y: y + 0.4, w: RW - 0.3, h: 0.5, fontFace: BF, fontSize: 10.5, color: INK, valign: "top", margin: 0, isTextBox: true });
   });
   s.addNotes(
-    `FEASIBILITY (45s). Lead with the chart: this is measured, not planned. Interior point ${nIpm} of 90 Netlib LPs at the known optimum, dual simplex ${nSpx} of ${nSpxTried} run so far, ${nUnion} solved by at least one engine. Every value is checked against HiGHS.\n` +
+    `FEASIBILITY (45s). Lead with the chart: this is measured, not planned. Dual simplex ${nSpx} of ${TOTAL} Netlib LPs; branch-and-bound ${nMip} of ${MIPTOT} MIPLIB 3 problems proven optimal in ${mipLimit} seconds where HiGHS proves ${nMipRef}; QP interior point ${nQp} of ${QPTOT} Maros–Mészáros problems where Clarabel solves ${nQpRef}. Every value is checked against the reference.\n` +
     "Then two risks only: hard MIPLIB instances (we report the proven gap honestly and close it with cuts) and speed against C++ solvers (the hot loops are compiled native code). Say the others are on the slide.\n" +
     "If asked whether students can build a solver: the algorithms are published mathematics; the work is careful implementation and testing, which is what this chart shows.");
 }
@@ -302,7 +321,7 @@ function card(slide, x, y, w, h, fill) {
     ["MILP", "Achterberg, Koch & Martin, reliability branching, ORL 33, 2005 — doi:10.1016/j.orl.2004.04.002"],
     ["Cuts", "Balas, Ceria, Cornuéjols & Natraj, 'Gomory cuts revisited', ORL 19, 1996"],
     ["Benchmarks", "MIPLIB 2017: Gleixner et al., Math. Prog. Comp. 13, 2021; exact Netlib optima: Koch, ORL 32, 2004"],
-    ["QP", "Maros & Mészáros, Optim. Methods Softw. 11, 1999 — doi:10.1080/10556789908805768"],
+    ["QP", "Vanderbei, quasi-definite LDLᵀ, SIAM J. Optim. 5(1), 1995 — doi:10.1137/0805005; test set: Maros & Mészáros, OMS 11, 1999"],
   ];
   const col = (items, x) => items.forEach(([k, v], i) => {
     const y = 1.6 + i * 0.86;
@@ -311,7 +330,7 @@ function card(slide, x, y, w, h, fill) {
   });
   col(left, 0.5);
   col(right, 6.85);
-  s.addText("Comparators used only in the benchmark harness, never inside the solver: HiGHS 1.15 (MIT), SCIP, OR-Tools. Benchmark data: Netlib via COIN-OR mirror, MIPLIB 3 / 2017 (miplib.zib.de).",
+  s.addText("Comparators used only in the benchmark harness, never inside the solver: HiGHS 1.15 (MIT), Clarabel 0.11 (Apache-2.0), SCIP, OR-Tools. Benchmark data: Netlib via COIN-OR mirror, MIPLIB 3 / 2017 (miplib.zib.de).",
     { x: 0.5, y: 6.72, w: 12.3, h: 0.3, fontFace: BF, fontSize: 9.5, color: MUTED, margin: 0, isTextBox: true });
   s.addNotes(
     "RESEARCH (25s, then stop). Do not read citations. Say: every component on the architecture slide has a primary source here: Mehrotra for the interior point, Koberstein and Forrest-Goldfarb for the dual simplex, Gilbert-Peierls for our LU, Applegate et al. for PDLP and Lu and Yang for the GPU version.\n" +
