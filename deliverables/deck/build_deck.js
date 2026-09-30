@@ -19,8 +19,9 @@ function readCsv(file) {
 const solved = (rows) => rows.filter((r) => r.status === "optimal" && r.rel_err !== "" && r.rel_err !== "nan" && parseFloat(r.rel_err) < 1e-6);
 const ipm1 = readCsv(path.join(ROOT, "results", "netlib_ipm_v1.csv"));
 const ipm2 = readCsv(path.join(ROOT, "results", "netlib_ipm_v2.csv"));
-const spx2 = readCsv(path.join(ROOT, "results", "netlib_simplex_v2.csv"));
-const spx = spx2.length >= 80 ? spx2 : readCsv(path.join(ROOT, "results", "netlib_simplex_v1.csv"));
+// newest complete sweep of each kind (a sweep still running is skipped until it is complete)
+const newest = (names, minRows) => { for (const n of names) { const r = readCsv(path.join(ROOT, "results", n)); if (r.length >= minRows) return r; } return []; };
+const spx = newest(["netlib_simplex_v3.csv", "netlib_simplex_v2.csv", "netlib_simplex_v1.csv"], 80);
 const ipmBest = ipm2.length >= 80 ? ipm2 : ipm1;
 const nIpm = solved(ipmBest).length, nIpmTried = ipmBest.length;
 const nSpx = solved(spx).length, nSpxTried = spx.length;
@@ -30,13 +31,13 @@ const TOTAL = 90;
 // MILP: MIPLIB 3, solved = proven optimal within the 1e-4 gap and agreeing with HiGHS to 1e-4
 const latest = (...names) => { for (const n of names) { const r = readCsv(path.join(ROOT, "results", n)); if (r.length) return r; } return []; };
 const okErr = (r, tol) => r.rel_err !== "" && r.rel_err !== "nan" && parseFloat(r.rel_err) <= tol;
-const mip = latest("miplib3_bnb_v2.csv", "miplib3_bnb_v1.csv");
+const mip = newest(["miplib3_bnb_v2.csv", "miplib3_bnb_v1.csv"], 60);
 const nMip = mip.filter((r) => r.status === "optimal" && okErr(r, 1e-4)).length;
 const nMipRef = mip.filter((r) => r.ref_status === "Optimal").length;
 const MIPTOT = mip.length || 64;
 const mipLimit = 60;
 // QP: Maros-Meszaros, solved = optimal and within 1e-6 of Clarabel
-const qp = latest("maros_qpipm_v2.csv", "maros_qpipm_v1.csv");
+const qp = newest(["maros_qpipm_v2.csv", "maros_qpipm_v1.csv"], 130);
 const nQp = qp.filter((r) => r.status === "optimal" && okErr(r, 1e-6)).length;
 const nQpRef = qp.filter((r) => r.ref_status === "Solved").length;
 const QPTOT = qp.length || 138;
