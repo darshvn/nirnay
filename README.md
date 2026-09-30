@@ -22,7 +22,7 @@ here, and every answer is re-checked against an independent solver.
 
 | | |
 |---|---|
-| ▶️ **Demo video** (3 min, narrated, captions) | [`NIRNAY_SIH26119_walkthrough.mp4`](https://github.com/darshvn/nirnay/releases/download/demo-video/NIRNAY_SIH26119_walkthrough.mp4) |
+| ▶️ **Demo video** (3 min, narrated, captions) | [youtu.be/2_Tf4IWhLiU](https://youtu.be/2_Tf4IWhLiU) |
 | 📊 **Idea deck** (SIH format, 6 slides + speaker notes) | [`deliverables/deck/ZeroCloud_SIH26119.pptx`](deliverables/deck/ZeroCloud_SIH26119.pptx) |
 | 📘 **Technical report** (59 pages, every number generated from `results/`) | [`deliverables/report/main.pdf`](deliverables/report/main.pdf) |
 | 🏭 **Industrial case studies** on Indian public data | [`docs/CASE_STUDIES.md`](docs/CASE_STUDIES.md) |
@@ -31,9 +31,9 @@ here, and every answer is re-checked against an independent solver.
 
 ## Watch: the 3-minute walkthrough
 
-[![NIRNAY walkthrough: 236× faster than HiGHS on a 1.5 M-nonzero LP, built from scratch](demo/video/thumb/thumbnail.png)](https://github.com/darshvn/nirnay/releases/download/demo-video/NIRNAY_SIH26119_walkthrough.mp4)
+[![NIRNAY walkthrough: 236× faster than HiGHS on a 1.5 M-nonzero LP, built from scratch](demo/video/thumb/thumbnail.png)](https://youtu.be/2_Tf4IWhLiU)
 
-A narrated walkthrough of the Studio (1080p60, 3:09; click the image to download). It covers a refinery LP
+A narrated walkthrough of the Studio (3:09; click the image to watch on YouTube, or [download the 1080p60 MP4](https://github.com/darshvn/nirnay/releases/download/demo-video/NIRNAY_SIH26119_walkthrough.mp4)). It covers a refinery LP
 verified against HiGHS, a four-month MILP plan, a published crude-unloading benchmark, the GPU engine on a
 1.5 M-nonzero LP, the architecture, and the benchmark results. Every frame is the real Studio showing real
 solves ([`demo/video/`](demo/video/) rebuilds it). Captions:
