@@ -55,7 +55,15 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 IS_WINDOWS = platform.system() == "Windows"
 WSL_DISTRO = "Ubuntu-24.04"
-WSL_SCRIPT = "/mnt/c/Users/darsh/nirnay/tools/wsl_single.sh"
+
+
+def _wsl_path(p):
+    """A Windows path as WSL sees it (C:/x/y -> /mnt/c/x/y), for calling the WSL-side helper."""
+    p = str(p).replace("\\", "/")
+    return f"/mnt/{p[0].lower()}{p[2:]}" if len(p) > 1 and p[1] == ":" else p
+
+
+WSL_SCRIPT = _wsl_path(Path(__file__).resolve().parent.parent / "tools" / "wsl_single.sh")
 MARK = "@@COMPARATOR_RESULT@@"
 
 ALIASES = {
