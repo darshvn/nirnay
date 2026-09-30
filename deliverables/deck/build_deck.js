@@ -14,7 +14,11 @@ function readCsv(file) {
   if (!fs.existsSync(file)) return [];
   const lines = fs.readFileSync(file, "utf8").trim().split(/\r?\n/);
   const head = lines.shift().split(",");
-  return lines.map((l) => { const v = l.split(","); const o = {}; head.forEach((h, i) => (o[h] = v[i])); return o; });
+  // fields may be quoted and contain commas (the QP reference status does)
+  const split = (l) => { const out = []; let cur = "", q = false;
+    for (const ch of l) { if (ch === '"') q = !q; else if (ch === "," && !q) { out.push(cur); cur = ""; } else cur += ch; }
+    out.push(cur); return out; };
+  return lines.map((l) => { const v = split(l); const o = {}; head.forEach((h, i) => (o[h] = v[i] ?? "")); return o; });
 }
 const solved = (rows) => rows.filter((r) => r.status === "optimal" && r.rel_err !== "" && r.rel_err !== "nan" && parseFloat(r.rel_err) < 1e-6);
 const ipm1 = readCsv(path.join(ROOT, "results", "netlib_ipm_v1.csv"));
@@ -38,8 +42,8 @@ const MIPTOT = mip.length || 64;
 const mipLimit = 60;
 // QP: Maros-Meszaros, solved = optimal and within 1e-6 of Clarabel
 const qp = newest(["maros_qpipm_v2.csv", "maros_qpipm_v1.csv"], 130);
-const nQp = qp.filter((r) => r.status === "optimal" && okErr(r, 1e-6)).length;
-const nQpRef = qp.filter((r) => r.ref_status === "Solved").length;
+const nQp = qp.filter((r) => r.status === "optimal" && r.rel_err !== "" && r.rel_err !== "nan" && parseFloat(r.rel_err) < 1e-6).length;
+const nQpRef = qp.filter((r) => r.ref_status.startsWith("Solved")).length;
 const QPTOT = qp.length || 138;
 const PDLP_BUILT = fs.existsSync(path.join(ROOT, "results", "netlib_pdlp_gpu.csv"));
 console.log(`IPM ${nIpm}/${nIpmTried}, simplex ${nSpx}/${nSpxTried}, either ${nUnion}/${TOTAL}; MIP ${nMip}/${MIPTOT} (HiGHS ${nMipRef}); QP ${nQp}/${QPTOT} (Clarabel ${nQpRef}); PDLP ${PDLP_BUILT}`);
@@ -148,6 +152,7 @@ function card(slide, x, y, w, h, fill) {
     "THE IDEA (60s). Start from the dependency, not the code: every refinery plan and blend in India runs through CPLEX, Gurobi or Xpress. Recurring cost, and nobody here can see inside.\n" +
     `Then the proof it is real: our dual simplex solves all ${nSpx} of the ${TOTAL} Netlib LPs to the known optimum, branch-and-bound proves ${nMip} of ${MIPTOT} MIPLIB 3 problems optimal in ${mipLimit} seconds, and the QP interior point solves ${nQp} of ${QPTOT} Maros–Mészáros QPs. No solver library is inside; the LU, Cholesky and LDLᵀ factorisations are ours.
 ` +
+    "If asked about speed: on Netlib the dual simplex is 3.7x slower than HiGHS in shifted geometric mean; the kernels are compiled but the iteration loop is still Python, and that is the next piece of work.\n" +
     "Land the four claims briefly. Spend the time on the first: we do not pick one algorithm, we ship three, because simplex, interior point and GPU PDLP each win on different problems, and a sovereign solver must not be weak where MRPL's models live.");
 }
 
@@ -160,7 +165,7 @@ function card(slide, x, y, w, h, fill) {
   const X = 0.5, W = 7.9;
   const layers = [
     ["INPUT", "MPS / QPS reader (fixed and free, all bound types) · Python API · command line", NAVY, WHITE, "BUILT"],
-    ["PRESOLVE", "Geometric scaling in powers of two · fixed columns and free rows removed · full presolve next", "3A4A6B", WHITE, "PARTIAL"],
+    ["PRESOLVE", "Scaling in powers of two · singleton, empty and redundant rows · fixed and free-singleton columns · exact dual postsolve", "3A4A6B", WHITE, "BUILT"],
   ];
   const chip = (label, x, y) => {
     const col = label === "BUILT" ? GREEN : label === "PARTIAL" ? "B7791F" : SAFFRON;
@@ -224,7 +229,7 @@ function card(slide, x, y, w, h, fill) {
     "Then why three LP engines: simplex gives an exact vertex and warm starts, which branch-and-bound needs; interior point is the most reliable on big sparse LPs; PDLP needs only matrix-vector products, which is exactly what a GPU is good at. The published evidence (cuPDLP, Lu & Yang 2023) is that GPU first-order methods win on very large LPs at moderate accuracy and lose at high accuracy, so we keep all three.\n" +
     "Close on verification: every benchmark run is re-solved by a reference solver (HiGHS for LP and MILP, Clarabel for QP).\n" +
     "Status, if asked: the green BUILT chips run today and are benchmarked. " + (PDLP_BUILT ? "" : "The GPU PDLP engine is being built now; say so plainly. ") +
-    "Presolve is partial: scaling and simple reductions only.");
+    "Presolve covers the classic reductions with an exact dual postsolve; doubleton, dominated-column and parallel-row reductions come next.");
 }
 
 // ================================================================= 4. FEASIBILITY AND VIABILITY
