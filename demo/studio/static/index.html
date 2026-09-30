@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NIRNAY Studio</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <div>
+        <div class="name">NIRNAY <em>Studio</em></div>
+        <div class="tag">Indigenous LP · MILP · QP solver · SIH26119</div>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="solve" role="tab">Solve</button>
+      <button class="tab" data-view="bench" role="tab">Benchmarks</button>
+      <button class="tab" data-view="source" role="tab">Source</button>
+    </nav>
+    <div class="pill-sovereign"><span class="dot"></span>No solver library inside</div>
+  </header>
+
+  <main>
+    <!-- ============================== SOLVE ============================== -->
+    <section class="view" id="view-solve">
+      <aside class="shelf" id="shelf"></aside>
+
+      <div class="work">
+        <div class="card model-card" id="model-card">
+          <div class="mc-left">
+            <div class="mc-kicker"><span class="kind" id="mc-kind">LP</span><span id="mc-group">MRPL scenario</span></div>
+            <h1 id="mc-title">Refinery crude plan</h1>
+            <p id="mc-sub" class="mc-sub"></p>
+            <p id="mc-src" class="mc-src"></p>
+          </div>
+          <div class="mc-stats" id="mc-stats"></div>
+        </div>
+
+        <div class="runbar">
+          <div class="engines" id="engines"></div>
+          <button class="solve" id="solve-btn"><span class="solve-ic"></span><span id="solve-label">Solve</span></button>
+        </div>
+
+        <div class="live">
+          <div class="card chart-card">
+            <div class="card-h"><span id="chart-title">Progress</span><span class="legend" id="chart-legend"></span></div>
+            <svg id="chart" viewBox="0 0 640 260" preserveAspectRatio="none"></svg>
+          </div>
+          <div class="card log-card">
+            <div class="card-h"><span>Solver log</span><span class="muted" id="log-engine"></span></div>
+            <div class="log" id="log"></div>
+          </div>
+        </div>
+
+        <div class="result" id="result">
+          <div class="res-status" id="res-status">READY</div>
+          <div class="res-cell big"><div class="lab" id="res-obj-lab">Objective</div><div class="val" id="res-obj">—</div></div>
+          <div class="res-cell"><div class="lab">Time</div><div class="val" id="res-time">—</div></div>
+          <div class="res-cell"><div class="lab" id="res-it-lab">Iterations</div><div class="val" id="res-it">—</div></div>
+          <div class="res-cell"><div class="lab">Max violation</div><div class="val" id="res-viol">—</div></div>
+          <div class="res-cell verify" id="verify">
+            <button class="ver-btn" id="verify-btn">Verify with HiGHS</button>
+            <div class="ver-out" id="verify-out"></div>
+          </div>
+        </div>
+
+        <div class="card insight" id="insight"><div class="empty">Solve the model to read the plan.</div></div>
+      </div>
+    </section>
+
+    <!-- ============================== BENCHMARKS ============================== -->
+    <section class="view hidden" id="view-bench">
+      <div class="bench-head">
+        <h2>Measured on public benchmark sets</h2>
+        <p>Every instance solved in its own process, then re-solved by an independent reference. "Solved" means the reference optimum is matched and every constraint holds.</p>
+      </div>
+      <div class="bench-cards" id="bench-cards"></div>
+      <div class="bench-row">
+        <div class="card found">
+          <div class="card-h"><span>What checking everything found in the reference solvers</span></div>
+          <table class="found-t">
+            <tr><td class="who">HiGHS 1.15.1</td><td>misreads the RHS section of <code>DPKLO1.QPS</code>; drops coefficients below 1e-9 in <code>KSIP</code>, <code>HUESTIS</code></td></tr>
+            <tr><td class="who">NVIDIA cuOpt 26.8</td><td>reports "optimal" 7665 on MIPLIB <code>p0201</code>; the optimum is 7615</td></tr>
+            <tr><td class="who">Clarabel 0.11</td><td>~1e-6 off at default tolerances on several QPs where NIRNAY matches the published optimum</td></tr>
+            <tr><td class="who">HiGHS PDLP</td><td>stops at limit/1000 s whenever a finite time limit is set</td></tr>
+          </table>
+        </div>
+        <div class="card speed">
+          <div class="card-h"><span>Honest about speed</span></div>
+          <div class="speed-big" id="speed-big">—</div>
+          <p class="muted">slower than HiGHS on Netlib (shifted geometric mean). The iteration loop is compiled; hyper-sparse solves and a Markowitz LU are next.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== SOURCE ============================== -->
+    <section class="view hidden" id="view-source">
+      <div class="src-grid">
+        <div class="card">
+          <div class="card-h"><span>The solver, module by module</span><span class="muted" id="src-total"></span></div>
+          <div class="tree" id="src-tree"></div>
+        </div>
+        <div class="src-right">
+          <div class="card imports">
+            <div class="card-h"><span>Imports scanned in <code>nirnay/</code></span></div>
+            <div id="src-third"></div>
+            <div class="solver-scan" id="src-solvers"></div>
+          </div>
+          <div class="card code">
+            <div class="card-h"><span><code>lp/_simplex_kernels.py</code> · the compiled dual simplex iteration</span></div>
+            <pre id="src-code"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>

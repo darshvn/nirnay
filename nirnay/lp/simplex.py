@@ -223,7 +223,7 @@ class SimplexLP:
             if time.perf_counter() > deadline:
                 return "time_limit"
             f = self.factor_
-            budget = int(min(max_iter - self.iterations, 200))
+            budget = int(min(max_iter - self.iterations, 10 if self.verbose > 1 else 200))
             code, its, n_eta, r = K.dual_run(
                 self.n, m, A.colptr, A.rowidx, A.vals, AT.colptr, AT.rowidx, AT.vals,
                 self.x, self.d, c, self.status, self.head, self.weights, lo, up, skip,

@@ -420,7 +420,7 @@ class BranchAndBound:
                     first.bound = self._bound_up(obj2)
                     first.basis = self.lp.get_basis() if len(heap) < 20000 else None
                     heapq.heappush(heap, (first.bound, -first.depth, next(counter), first))
-            if self.verbose and self.nodes % 200 == 0:
+            if self.verbose and self.nodes % (25 if self.verbose > 1 else 200) == 0:
                 lo_b = min(heap[0][0] if heap else np.inf, self._bound_up(obj))
                 print(f"  nodes {self.nodes:7d}  open {len(heap):6d}  bound {m.sense * lo_b:+.10g}  "
                       f"incumbent {m.sense * self.inc_obj:+.10g}")

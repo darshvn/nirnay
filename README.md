@@ -28,6 +28,37 @@ here, and every answer is re-checked against an independent solver.
 | 🔬 **Competitor study** — 8 solvers installed and run | [`docs/COMPETITOR_ANALYSIS.md`](docs/COMPETITOR_ANALYSIS.md) |
 | ❓ **Jury Q&A** | [`docs/JURY_QA.md`](docs/JURY_QA.md) |
 
+## See it run: NIRNAY Studio
+
+A local web front end for the solver ([`demo/studio/`](demo/studio/)): pick a model and an engine, press
+**Solve**, and the solver's own progress streams in live; then **Verify with HiGHS** re-solves the same
+model independently. Every number in these screenshots came from a real run on the laptop.
+
+```bash
+pip install fastapi uvicorn          # plus highspy for the Verify button
+python demo/studio/server.py         # → http://127.0.0.1:8119
+```
+
+**An MRPL-style refinery plan (LP).** Crude slate, product yields and the shadow price of every
+capacity, recovered exactly through presolve. HiGHS agrees to 2e-15.
+
+<p align="center"><img src="docs/images/studio/01_refinery_lp.png" width="900" alt="Refinery LP in NIRNAY Studio"></p>
+
+<table>
+<tr>
+<td width="50%"><b>Four months ahead (MILP).</b> Branch-and-bound closes the gap between the best plan
+found and the best still possible, then proves it optimal.<br><img src="docs/images/studio/02_plan_milp.png" alt="4-month refinery plan MILP"></td>
+<td width="50%"><b>Crude unloading schedule (MILP).</b> Lee et al. (1996): NIRNAY finds 79.75, exactly the
+published optimum, and draws the schedule.<br><img src="docs/images/studio/03_unloading_schedule.png" alt="Crude unloading schedule"></td>
+</tr>
+<tr>
+<td width="50%"><b>Scale on the GPU.</b> A 1.5-million-nonzero LP in about a second on a laptop GPU;
+HiGHS takes 259 s on the same machine.<br><img src="docs/images/studio/04_gpu_large_lp.png" alt="PDLP on the GPU"></td>
+<td width="50%"><b>Nothing borrowed.</b> The Source tab scans every import in <code>nirnay/</code>: zero
+optimisation libraries.<br><img src="docs/images/studio/06_source.png" alt="Source scan"></td>
+</tr>
+</table>
+
 ## Results at a glance
 
 Measured on one laptop (Intel i5-11400H 6-core, 8 GB RAM, NVIDIA RTX 3050 Laptop 4 GB). Each instance runs
@@ -184,6 +215,7 @@ nirnay/        the solver (≈ 7,500 lines of Python + Numba + CUDA kernels)
   io/ presolve/ linalg/ lp/ mip/ qp/ cases/ cli.py
 bench/         benchmark harnesses (process-isolated, reference re-solve), comparator driver
 tests/         regression tests against published optima
+demo/studio/   NIRNAY Studio: local web front end (FastAPI + SVG charts), screenshot script
 tools/         dual feasibility checker, QPS cross-check, figure generation, comparator demos
 results/       every benchmark run as CSV + log
 docs/          case studies, competitor analysis, jury Q&A, images
@@ -215,5 +247,5 @@ Applegate et al. (2021) and Lu & Yang (2025).
 ---
 
 <sub>Apache-2.0 · Team ZeroCloud · Smart India Hackathon 2026. HiGHS, Clarabel, SCIP, OR-Tools, GLPK,
-CBC, OSQP and cuOpt are used only in `bench/` and `tools/` as references; nothing under `nirnay/`
-imports them.</sub>
+CBC, OSQP and cuOpt are used only in `bench/`, `tools/` and the Studio's Verify button as references;
+nothing under `nirnay/` imports them (the Studio's Source tab checks this).</sub>

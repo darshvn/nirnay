@@ -1,8 +1,8 @@
 """Reference optima for the case studies, computed by HiGHS (comparison only; highspy is an optional
 `bench` dependency and is imported lazily).
 
-    python -m nirnay.cases._reference            # rebuild every case, export MPS, solve, write CSV
-    python -m nirnay.cases._reference unit_commitment
+    python bench/case_reference.py            # rebuild every case, export MPS, solve, write CSV
+    python bench/case_reference.py unit_commitment
 
 HiGHS reads the exported MPS file (not an in-memory copy), so the reference value is the optimum of
 exactly the file in data/cases/.
@@ -14,10 +14,11 @@ import sys
 import time
 from pathlib import Path
 
-from . import CASES, build, info
-from ..io.mps_write import write_mps
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from nirnay.cases import CASES, build, info  # noqa: E402
+from nirnay.io.mps_write import write_mps  # noqa: E402
 
-CASE_DIR = Path(__file__).resolve().parents[2] / "data" / "cases"
+CASE_DIR = Path(__file__).resolve().parents[1] / "data" / "cases"
 REFERENCE_CSV = CASE_DIR / "reference.csv"
 FIELDS = ["case", "class", "rows", "cols", "integer_cols", "nnz", "q_nnz", "highs_status",
           "objective", "mip_rel_gap_target", "mip_gap", "mip_bound", "highs_time_s", "highs_version",
@@ -47,7 +48,7 @@ def solve_mps(path, time_limit: float = 3600.0, mip_rel_gap: float = 1e-6, threa
 
 def options(name: str) -> dict:
     """Per-case HiGHS settings: a case module may define REFERENCE = {"mip_rel_gap": ..., ...}."""
-    from . import module
+    from nirnay.cases import module
     opts = {"time_limit": 3600.0, "mip_rel_gap": 1e-6}
     opts.update(getattr(module(name), "REFERENCE", {}))
     return opts

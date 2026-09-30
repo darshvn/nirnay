@@ -17,7 +17,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+import sys
+
 from nirnay.cases import CASES, build, info
+
+# the HiGHS reference script is benchmark tooling and lives outside the solver package
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "bench"))
 from nirnay.io.mps import read_mps
 from nirnay.io.mps_write import write_mps
 
@@ -67,7 +72,7 @@ def test_builds_and_validates(case):
 def test_exported_mps_matches_build(case, tmp_path):
     name, model = case
     path = CASE_DIR / f"{name}.mps"
-    assert path.exists(), f"run python -m nirnay.cases._reference {name}"
+    assert path.exists(), f"run python bench/case_reference.py {name}"
     assert same_model(model, read_mps(path)), "data/cases MPS is stale: rerun _reference"
     write_mps(model, tmp_path / "x.mps")
     assert same_model(model, read_mps(tmp_path / "x.mps"))
@@ -78,7 +83,7 @@ def test_highs_reference(case):
     pytest.importorskip("highspy")
     if name in SLOW_CASES and not SLOW:
         pytest.skip("slow reference solve; set NIRNAY_SLOW=1")
-    from nirnay.cases._reference import options, solve_mps
+    from case_reference import options, solve_mps
     ref = REF[name]
     opts = options(name)
     r = solve_mps(CASE_DIR / f"{name}.mps", time_limit=max(600.0, 3 * float(ref["highs_time_s"])),
@@ -99,7 +104,7 @@ def test_reference_csv_complete():
 
 def _highs(model, tmp_path, **kw):
     pytest.importorskip("highspy")
-    from nirnay.cases._reference import solve_mps
+    from case_reference import solve_mps
     write_mps(model, tmp_path / "m.mps")
     return solve_mps(tmp_path / "m.mps", **kw)
 
