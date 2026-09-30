@@ -1,0 +1,137 @@
+% Section 7: the LP interior-point method.
+\section{The interior-point method for LP}\label{sec:ipm}
+
+\file{lp/ipm.py} implements Mehrotra's predictor--corrector method~\cite{mehrotra1992} on the bounded
+standard form \eqref{eq:ipm-form}, with the normal equations solved by the sparse Cholesky of
+\cref{sec:chol}. The practical details (free variables, starting point, the normal equations and
+their numerical difficulties) follow Wright~\cite[ch.~10--11]{wright1997}. The upper-bound handling
+follows Lustig, Marsten and Shanno~\cite{lustig1994}.
+
+\subsection{Newton system}
+Write $\mathcal L$ for the variables with a lower bound (after shifting, $x_j\ge0$) and $\mathcal U$
+for the boxed ones, and let $X,Z,W,S$ be the diagonal matrices of $x,z,w,s$. The residuals of
+\eqref{eq:ipm-kkt} are
+\begin{equation}\label{eq:ipm-res}
+  r_b = b - Bx,\qquad r_u = U - x - w,\qquad r_c = c - B\T y - z + s,\qquad
+  \mu = \frac{x_{\mathcal L}\T z_{\mathcal L} + w\T s}{|\mathcal L|+|\mathcal U|}.
+\end{equation}
+A Newton step for the perturbed complementarity conditions $XZe=\sigma\mu e$, $WSe=\sigma\mu e$
+solves
+\begin{equation}\label{eq:newton}
+\begin{aligned}
+  B\,\Delta x &= r_b, & \Delta x+\Delta w &= r_u, & B\T\Delta y+\Delta z-\Delta s &= r_c,\\
+  Z\Delta x + X\Delta z &= r_{xz}, & S\Delta w + W\Delta s &= r_{ws}. &&
+\end{aligned}
+\end{equation}
+Eliminating $\Delta z$, $\Delta w$, $\Delta s$ gives $-\Theta^{-1}\Delta x + B\T\Delta y=\hat r$ with
+\begin{equation}\label{eq:theta}
+  \Theta^{-1} = X^{-1}Z + W^{-1}S + \Gamma,\qquad
+  \hat r = r_c - X^{-1}r_{xz} + W^{-1}(r_{ws}-S r_u),
+\end{equation}
+where $\Gamma$ is a small primal regularisation: $10^{-8}$ on free variables, which have no barrier
+term and would otherwise make $\Theta$ infinite, and $10^{-10}$ elsewhere. Eliminating $\Delta x$
+leaves the normal equations
+\begin{equation}\label{eq:normal}
+  \bigl(B\Theta B\T + \delta I\bigr)\,\Delta y = r_b + B\Theta\hat r,\qquad \delta = 10^{-10},
+\end{equation}
+and back-substitution recovers
+\begin{equation}\label{eq:backsub}
+  \Delta x = \Theta(B\T\Delta y-\hat r),\quad
+  \Delta z = X^{-1}(r_{xz}-Z\Delta x),\quad
+  \Delta w = r_u-\Delta x,\quad
+  \Delta s = W^{-1}(r_{ws}-S\Delta w).
+\end{equation}
+The dual regularisation $\delta$ keeps $M$ positive definite when rows of $B$ are dependent. Each
+solve of \eqref{eq:normal} is followed by up to two steps of iterative refinement against the
+assembled matrix, $\Delta y\leftarrow\Delta y + M^{-1}(\text{rhs}-M\Delta y)$.
+
+\subsection{Predictor--corrector}
+Each iteration factorises $M$ once and solves with it twice:
+\begin{enumerate}
+  \item \textbf{Predictor} (affine scaling): $r_{xz}=-XZe$, $r_{ws}=-WSe$. The largest steps
+        $\alpha_p,\alpha_d\le1$ that keep $x,w$ and $z,s$ nonnegative give the affine
+        complementarity $\mu_{\text{aff}}$, and the centring parameter is Mehrotra's
+        $\sigma=\min\bigl(1,(\mu_{\text{aff}}/\mu)^3\bigr)$.
+  \item \textbf{Corrector:} $r_{xz}=\sigma\mu e - XZe - \Delta X_{\text{aff}}\Delta Z_{\text{aff}}e$,
+        and likewise for $(w,s)$. This adds centring and the second-order term the predictor
+        neglected.
+  \item \textbf{Step:} separate primal and dual step lengths, each the fraction $\eta=0.9995$ of the
+        distance to the boundary, capped at~1.
+\end{enumerate}
+
+\paragraph{Starting point}
+Mehrotra's heuristic, adapted to bounds: with $M_0=BB\T+\delta I$ (factorised once),
+$x=B\T M_0^{-1}b$ and $y=M_0^{-1}Bc$. Then $z$ and $s$ are the positive and negative parts of
+$c-B\T y$, and $w = U-x$. Each group is shifted to positivity by $1.5$ times its most negative entry,
+and all four are then shifted once more by $\frac12 x\T z/\sum z$ and $\frac12 x\T z/\sum x$, which
+balances the complementarity products.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[node distance=5mm and 6mm]
+  \node[blk,minimum width=3.6cm] (it) {iterate $(x,w,y,z,s)$};
+  \node[blk,right=of it,minimum width=3.9cm] (res) {residuals $r_b,r_u,r_c$, $\mu$\\[-1pt]{\scriptsize relative $\infty$-norms, gap}};
+  \node[dec,right=of res] (conv) {converged\\or stalled?};
+  \node[term,fill=igreen,draw=igreen,above=6mm of conv] (done) {optimal / status};
+  \node[blkn,below=9mm of conv,minimum width=3.8cm] (fac) {$\Theta$; assemble $M=B\Theta B\T+\delta I$\\[-1pt]{\scriptsize one Cholesky $LL\T=PMP\T$}};
+  \node[blks,left=of fac,minimum width=3.7cm] (pred) {predictor solve\\[-1pt]{\scriptsize$\alpha_p,\alpha_d$, $\mu_{\text{aff}}$, $\sigma=(\mu_{\text{aff}}/\mu)^3$}};
+  \node[blks,left=of pred,minimum width=3.4cm] (corr) {corrector solve\\[-1pt]{\scriptsize same factor, $+\sigma\mu e-\Delta X\Delta Ze$}};
+  \draw[flow] (it) -- (res);
+  \draw[flow] (res) -- (conv);
+  \draw[flow] (conv) -- node[lbl,right]{yes} (done);
+  \draw[flow] (conv) -- node[lbl,right]{no} (fac);
+  \draw[flow] (fac) -- (pred);
+  \draw[flow] (pred) -- (corr);
+  \draw[flow] (corr.west) -- ++(-0.35,0) |- node[lbl,left,pos=0.25,align=right]{step to $\eta=0.9995$\\of the boundary} (it.west);
+\end{tikzpicture}
+\caption[Interior-point iteration]{One iteration of the LP interior-point method: one
+factorisation of the normal matrix and two solves with it (predictor and corrector). The same loop,
+with the augmented system of \cref{fig:kkt} in place of $M$, is the QP method of \cref{sec:qp}.}
+\label{fig:ipm}
+\end{figure}
+
+\subsection{Termination and stall detection}
+Convergence is measured by relative residuals in the $\infty$-norm, the way HiGHS/IPX and most
+interior-point codes report them:
+\begin{equation}\label{eq:ipm-term}
+  p = \frac{\|r_b\|_\infty}{1+\|b\|_\infty}+\frac{\|r_u\|_\infty}{1+\|U\|_\infty},\qquad
+  d = \frac{\|r_c\|_\infty}{1+\|c\|_\infty},\qquad
+  g = \frac{|c\T x - (b\T y - U\T s)|}{1+|c\T x|},
+\end{equation}
+and the method stops as \code{optimal} when $p,d,g<10^{-8}$. Near the solution the normal
+equations become so ill-conditioned that progress can stop before that point. Continuing then only
+drives $\mu$ to zero and $z/x$ to overflow. The method therefore tracks the best error
+$e^\star=\min\max(p,d,g)$ so far and counts iterations that fail to halve it:
+\begin{itemize}
+  \item after 4 such iterations, or once $\mu<10^{-14}(1+|c\T x|)$, the point is accepted as
+        \code{optimal} if $p,d,g$ are all below the loose tolerance $10^{-6}$, the accuracy floor
+        of the normal equations;
+  \item after 30 such iterations it stops with \code{numerical\_error};
+  \item a non-finite objective also stops with \code{numerical\_error}.
+\end{itemize}
+Infeasibility is detected heuristically, from iterates that run off to infinity while the other side
+converges: after 20 iterations, $\mu<10^{-12}$, $p>10^{-6}$ and $\|y\|_\infty>10^{12}$ mean primal
+infeasible, and $d>10^{-6}$ with $\|x\|_\infty>10^{14}$ means unbounded. A homogeneous self-dual
+formulation would give certificates instead, and is on the roadmap.
+
+\begin{algorithm}[t]
+\caption{Mehrotra predictor--corrector for LP (\file{lp/ipm.py})}\label{alg:ipm}
+\Input{bounded standard form $(B,b,c,U)$, tolerance $\epsilon=10^{-8}$, loose tolerance $10^{-6}$}
+analyse the pattern of $BB\T$ once: ordering, elimination tree, slot map\;
+starting point (Mehrotra's heuristic); $e^\star\leftarrow\infty$, $k_{\text{stall}}\leftarrow0$\;
+\For{$k=1,\dots,200$}{
+  compute $r_b,r_u,r_c,\mu$ and $p,d,g$ \eqref{eq:ipm-term}\;
+  \lIf{$\max(p,d,g)<\epsilon$}{\Return optimal}
+  \leIf{$\max(p,d,g)<e^\star/2$}{$e^\star\leftarrow\max(p,d,g)$, $k_{\text{stall}}\leftarrow0$}{$k_{\text{stall}}\leftarrow k_{\text{stall}}+1$}
+  \If{$k_{\text{stall}}\ge4$ or $\mu$ tiny}{
+    \lIf{$\max(p,d,g)<10^{-6}$}{\Return optimal}
+    \lIf{$k_{\text{stall}}\ge30$}{\Return numerical error}
+  }
+  infeasibility and unboundedness heuristics\;
+  $\Theta\leftarrow(X^{-1}Z+W^{-1}S+\Gamma)^{-1}$; assemble $M$ \eqref{eq:assemble}; factor $LL\T=PMP\T$\;
+  predictor: solve \eqref{eq:normal} with $r_{xz}=-XZe$, $r_{ws}=-WSe$; get $\alpha_p,\alpha_d,\mu_{\text{aff}}$\;
+  $\sigma\leftarrow\min(1,(\mu_{\text{aff}}/\mu)^3)$\;
+  corrector: solve with $r_{xz}=\sigma\mu e-XZe-\Delta X_{\text{aff}}\Delta Z_{\text{aff}}e$ (and $w,s$)\;
+  step with $\alpha_p,\alpha_d\leftarrow\min(1,0.9995\,\alpha_{\max})$\;
+}
+\end{algorithm}

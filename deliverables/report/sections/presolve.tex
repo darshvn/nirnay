@@ -1,0 +1,168 @@
+% Section 4: presolve and postsolve.
+\section{Presolve and postsolve}\label{sec:presolve}
+
+Presolve shrinks a model before any engine sees it. The reductions in
+\file{nirnay/presolve/presolve.py} are the classical ones of Andersen and Andersen~\cite{andersen1995}
+and Gondzio~\cite{gondzio1997}, restricted to those with an \emph{exact primal and dual}
+postsolve. Postsolve therefore returns duals $y$ and reduced costs $z$ for the original model as
+well as~$x$. \code{nirnay.solve} applies presolve by default to LPs and MILPs solved by the simplex,
+the interior-point method and branch-and-bound. It is not applied to QPs or to PDLP, which works on the
+original rows.
+
+\subsection{Reductions}
+Presolve runs over columns and rows repeatedly until a pass changes nothing (at most 20 passes). Every
+reduction pushes a record onto a stack; postsolve pops the stack. With $\bar c$ the current
+(possibly modified) cost vector and $[\bar r^l,\bar r^u]$ the current row bounds:
+
+\begin{description}[style=nextline,leftmargin=1.2em,font=\sffamily\bfseries\color{navy}]
+\item[Fixed column] ($\ell_j=u_j$). Substitute $x_j=\ell_j$: $\bar r\leftarrow \bar r - a_j\ell_j$,
+  $c_0\leftarrow c_0+\bar c_j\ell_j$. Postsolve: $x_j=\ell_j$; $z_j$ follows from the final $y$.
+\item[Empty column] (no nonzero in any live row). Set $x_j$ to the bound its cost prefers:
+  $\ell_j$ if $\bar c_j>0$, $u_j$ if $\bar c_j<0$. If that bound is infinite the problem is
+  unbounded. Postsolve: $z_j=\bar c_j$.
+\item[Empty row] Drop it, or declare infeasibility if $0\notin[\bar r^l_i,\bar r^u_i]$. Postsolve: $y_i=0$.
+\item[Redundant row] If the activity bounds $L_i=\sum_j \min(a_{ij}\ell_j,a_{ij}u_j)$ and
+  $U_i=\sum_j\max(a_{ij}\ell_j,a_{ij}u_j)$ lie inside $[\bar r^l_i,\bar r^u_i]$, the row can never
+  bind: drop it, $y_i=0$. If $[L_i,U_i]$ misses the row interval the problem is infeasible.
+\item[Singleton row] ($a_{ij}x_j\in[\bar r^l_i,\bar r^u_i]$ with one live entry). The row becomes
+  a bound on $x_j$:
+  \begin{equation}\label{eq:singleton-bound}
+     \ell_j \leftarrow \max\bigl(\ell_j,\; \lambda\bigr),\quad u_j\leftarrow \min\bigl(u_j,\;\mu\bigr),\qquad
+     [\lambda,\mu] = \begin{cases} [\bar r^l_i/a_{ij},\ \bar r^u_i/a_{ij}] & a_{ij}>0,\\
+                                   [\bar r^u_i/a_{ij},\ \bar r^l_i/a_{ij}] & a_{ij}<0,\end{cases}
+  \end{equation}
+  rounded inward for an integer column. The record keeps which of the two bounds the row
+  supplied, and (see \cref{sec:presolve-bug}) the column's cost $\bar c_j$ and its live rows at this moment.
+\item[Free column singleton] on an equality row. If $x_j$ appears only in row $i$, the row is
+  $\sum_k a_{ik}x_k = b_i$, and the bounds of $x_j$ cannot bind (it is free, or the row and the
+  other columns' bounds imply its bounds), then $x_j$ can be eliminated with the row:
+  \begin{equation}\label{eq:free-singleton}
+    x_j = \frac{b_i-\sum_{k\ne j}a_{ik}x_k}{a_{ij}},\qquad
+    y_i = \frac{\bar c_j}{a_{ij}},\qquad
+    \bar c_k \leftarrow \bar c_k - a_{ik}\,y_i\ (k\ne j),\qquad c_0\leftarrow c_0 + b_i\,y_i .
+  \end{equation}
+  The dual is known at removal time, because $x_j$ is basic (it is not at a bound), so its reduced
+  cost $\bar c_j - a_{ij}y_i$ must be zero.
+\item[Integer bounds] (MILP only). Round integer bounds inward and tighten them by
+  activity-based propagation over the live rows (\cref{sec:propagation}); see
+  Achterberg et al.~\cite{achterberg2020} for the MIP presolve reductions still missing. The LP dual is not needed
+  for a MILP, so these reductions need no dual postsolve.
+\end{description}
+
+\subsection{Postsolve and dual recovery}
+Postsolve starts from the reduced solution: $x$ on kept columns, $x_j$ of removed columns as
+recorded, $y$ on kept rows and $y_i=0$ on removed rows. It maintains $z=c-A\T y$ over the
+\emph{original} model and undoes the stack in reverse order:
+\begin{itemize}
+  \item a free column singleton restores $x_j$ and sets $y_i=\bar c_j/a_{ij}$ from \eqref{eq:free-singleton};
+  \item a singleton row computes the reduced cost of $x_j$ \emph{in the problem as it was when
+    the row was removed},
+    \begin{equation}\label{eq:zbar}
+      \bar z_j = \bar c_j^{\,\text{rec}} - \sum_{k\in\mathcal{R}_j^{\text{rec}}} a_{kj}\,y_k ,
+    \end{equation}
+    where $\bar c_j^{\,\text{rec}}$ and $\mathcal{R}_j^{\text{rec}}$ (the rows in which $x_j$ was
+    still live) were recorded at removal. If the bound this row created is active and $\bar z_j$
+    has the sign that bound can absorb, the reduced cost moves to the row:
+    \begin{equation}\label{eq:singleton-dual}
+      \bigl(x_j=\lambda \text{ and } \bar z_j>0\bigr)\ \text{or}\ \bigl(x_j=\mu\text{ and }\bar z_j<0\bigr)
+      \quad\Longrightarrow\quad y_i = \frac{\bar z_j}{a_{ij}},\qquad z_j\leftarrow z_j - a_{ij}y_i .
+    \end{equation}
+    Otherwise $y_i=0$ and the bound's multiplier stays in~$z_j$.
+  \item empty, redundant and fixed items need nothing: $y_i=0$, and $z_j$ is already correct.
+\end{itemize}
+Each assignment of $y_i$ subtracts $a_{i\cdot}y_i$ from the running $z$, so at the end
+$z=c-A\T y$ holds exactly and \eqref{eq:kkt-lp} can be checked on the original model.
+
+\subsection{An order-dependence bug in singleton-row duals}\label{sec:presolve-bug}
+\begin{lessonbox}[Bug: singleton-row duals depended on the order of undoing]
+\textbf{Symptom.} With presolve switched on, some postsolved solutions had an optimal $x$ but duals
+that violated the sign conditions \eqref{eq:kkt-lp} of the original model. The violations sat on
+columns that had lost singleton rows, and they depended on the order in which the reductions were
+undone.
+
+\textbf{Cause.} The first version decided \eqref{eq:singleton-dual} from the running reduced cost
+$z_j = c_j - \sum_k a_{kj}y_k$ at the moment the record was undone. That value is wrong in two ways:
+\begin{enumerate}[leftmargin=1.4em]
+  \item it uses the original $c_j$, while the reduced problem that removed the row had cost
+        $\bar c_j$, already modified by free-column-singleton substitutions
+        \eqref{eq:free-singleton} made \emph{earlier};
+  \item it sums over all rows of $x_j$, including rows removed \emph{before} this one. Their duals
+        are assigned \emph{later} in postsolve (the stack is undone in reverse), so they are still
+        zero. Another singleton row on the same column is the typical case.
+\end{enumerate}
+Both errors depend on the order of reductions, so the answer depended on that order too.
+
+\textbf{Fix.} Record $\bar c_j$ and the live rows of column $j$ (indices and coefficients) when
+the row is removed, and evaluate \eqref{eq:zbar} from the record. Every row in
+$\mathcal{R}_j^{\text{rec}}$ is either kept (its dual comes from the engine) or removed
+\emph{after} this row, and so undone \emph{before} it. Its dual is therefore final when
+\eqref{eq:zbar} is evaluated. By induction over the stack, each undo step turns an optimal
+primal--dual pair of the smaller problem into one of the larger problem.
+\end{lessonbox}
+
+The simplex was changed at the same time to recompute $y=B\mT c_B$ exactly for the true costs
+when it returns an optimal basis (\file{lp/simplex.py}, \code{\_result}). Its iteration loop
+updates reduced costs incrementally and refreshes $y$ only at refactorisation, and the dual
+loop may shift costs (\cref{sec:simplex-safeguards}), so the $y$ held at the end is not exactly the
+dual of the final basis for the original costs. Postsolve needs exact duals.
+
+\ifnum\haveDualCheck=1
+\paragraph{Check} \file{tools/dual\_check.py} solves every Netlib LP with presolve and the dual
+simplex (\SI{60}{s} limit) and tests primal feasibility and the sign conditions
+\eqref{eq:kkt-lp} on the original model, relative to $1+\|c\|_\infty$. On the run used for this
+report, \nDualOk{} of \nDualTot{} problems passed with \nDualBad{} failures. The largest relative
+reduced-cost violation was \dualMaxZ{} and the largest row-dual sign violation \dualMaxY{}. The remaining
+\nDualStatus{} problems, \dualStatusNames, hit the \SI{60}{s} limit of the check and were not tested.
+\fi
+
+\subsection{What presolve removes}
+\ifnum\haveCensus=1
+Running presolve alone on the \nCensus{} Netlib problems removes \censusRowsPct\% of all rows,
+\censusColsPct\% of all columns and \censusNnzPct\% of all nonzeros (median \censusMedRowsPct\% of
+rows per problem, up to \censusMaxRowsPct\% on \code{\censusMaxRowsName}). \censusUntouched{}
+problems are not reduced at all. \Cref{tab:presolve-rules} counts the reductions by rule. The whole
+census takes \censusTime\,s, with \code{\censusMaxTimeName} the slowest at \censusMaxTime\,s, because
+presolve is written in plain Python loops.
+
+\begin{table}[ht]
+\centering\small
+\caption[Presolve reductions on Netlib]{Presolve reductions on the Netlib LPs, by rule: how many
+rows or columns each rule removed in total, and on how many problems it fired at least once.}
+\label{tab:presolve-rules}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Rule & Removed & Problems\\
+\midrule
+\rows{data/presolve_rules.tex}
+\bottomrule
+\end{tabular}
+\end{table}
+\fi
+
+These are only the simplest reductions. The comparator study (\cref{sec:competitors}) shows that
+doubleton equations, forcing rows, dominated columns and parallel rows account for most of what
+HiGHS's presolve removes. Those are next on the roadmap (\cref{sec:roadmap}).
+
+\ifnum\haveSpxPresolve=1
+\paragraph{Effect on the dual simplex}
+The simplex sweep with presolve is \file{\presolveFile}\ifnum\presolvePartial=1{}, which was still
+running when this report was built, with \presolveDone{} of the \nNetlibFiles{} Netlib problems
+finished\fi. It solves \presolveSolved{} of its \presolveDone{} problems (failures: \presolveFailNames). On the
+\nPresolveCommon{} problems solved both with and without presolve, presolve reduces the dual
+iterations by a factor of \presolveIterRatio{} (geometric mean of the ratios). Timed against HiGHS
+inside each sweep, which cancels differences in machine load between the two runs, the shifted-mean
+ratio is \presolveRatioHighs{} with presolve and \presolveRatioHighsVtwo{} without, and the geometric
+mean of per-instance ratios is \presolveGmrHighsCommon{} with presolve and
+\presolveGmrHighsCommonVtwo{} without.
+(The raw times are not comparable: HiGHS itself ran \presolveLoad{} times slower, in geometric mean,
+during the sweep with presolve, because other sweeps shared the machine.)
+\ifnum\presolveFaster=1 Presolve therefore pays for itself on these problems.\fi
+\ifnum\presolveFaster=0 Presolve therefore roughly breaks even in shifted geometric mean, which weights
+the longer solves\ifnum\presolveSmallWorse=1, and it costs time on the many small problems, where the
+per-instance ratio rises\fi. Its passes are pure Python loops, which on small problems cost about as
+much as the iterations they save, or more. Compiling presolve is part of the first roadmap item, and
+the payoff should come from the stronger reductions still to be written.\fi
+\ifnum\presolveFaster=-1 Presolve therefore does not yet pay for itself. Its passes are pure Python
+loops, and on these small problems they cost more than the iterations they save. Compiling presolve is
+part of the first roadmap item.\fi
+\fi

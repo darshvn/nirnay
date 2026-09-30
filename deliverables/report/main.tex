@@ -1,0 +1,115 @@
+% NIRNAY technical report. Build: latexmk -pdf main.tex (after python gen_data.py).
+\documentclass[11pt,a4paper]{article}
+
+% ------------------------------------------------------------------ fonts and page
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{libertinus}
+\usepackage{libertinust1math}
+\usepackage[scale=0.93]{sourcesanspro}
+\usepackage[scale=0.86]{sourcecodepro}
+\usepackage{bm}
+\usepackage[a4paper,top=26mm,bottom=28mm,left=26mm,right=26mm,headheight=22pt,headsep=14pt]{geometry}
+\usepackage[final]{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+
+% ------------------------------------------------------------------ branding (from the idea deck)
+\definecolor{navy}{HTML}{1F2A44}
+\definecolor{saffron}{HTML}{E8702A}
+\definecolor{igreen}{HTML}{1E8C45}
+\definecolor{ink}{HTML}{2B2F36}
+\definecolor{muted}{HTML}{5B6770}
+\definecolor{card}{HTML}{F2F4F7}
+\definecolor{rule}{HTML}{D5DAE1}
+\definecolor{sky}{HTML}{3A6EA5}
+\definecolor{plum}{HTML}{8E4585}
+
+% ------------------------------------------------------------------ figures and plots
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,shapes.misc,fit,calc,backgrounds,matrix,
+  decorations.pathreplacing,patterns}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots,fillbetween}
+\usepackage{pgfplotstable}
+\usepackage[linguistics]{forest}
+
+% ------------------------------------------------------------------ tables, numbers, boxes, code
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage[detect-all]{siunitx}
+\sisetup{exponent-product=\cdot, retain-zero-exponent=false, group-minimum-digits=5}
+\usepackage[most]{tcolorbox}
+\usepackage{listings}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage[section]{placeins}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{xurl}
+\usepackage[numbers,sort&compress]{natbib}
+
+% hyperref and cleveref last
+\usepackage[colorlinks=true,linkcolor=navy,citecolor=igreen,urlcolor=sky,
+  pdftitle={NIRNAY: an indigenous LP/MILP/QP solver (SIH26119 technical report)},
+  pdfauthor={Team ZeroCloud}]{hyperref}
+\usepackage{doi}
+\usepackage[capitalise,noabbrev]{cleveref}
+\crefname{algocf}{Algorithm}{Algorithms}
+\Crefname{algocf}{Algorithm}{Algorithms}
+
+\input{style}
+\input{data/macros}
+
+\begin{document}
+
+\pagenumbering{Alph}
+\input{sections/titlepage}
+
+\pagenumbering{roman}
+\input{sections/abstract}
+\clearpage
+\tableofcontents
+\clearpage
+\listoffigures
+\listoftables
+\listofalgorithms
+\clearpage
+\pagenumbering{arabic}
+
+\input{sections/intro}
+\input{sections/formulation}
+\input{sections/architecture}
+\input{sections/presolve}
+\input{sections/linalg}
+\input{sections/simplex}
+\input{sections/ipm}
+\input{sections/pdlp}
+\input{sections/mip}
+\input{sections/qp}
+\input{sections/safeguards}
+\input{sections/verification}
+\input{sections/results}
+\input{sections/cases}
+\input{sections/competitors}
+\input{sections/roadmap}
+
+\clearpage
+\phantomsection
+\addcontentsline{toc}{section}{References}
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\clearpage
+\appendix
+\input{sections/appendix}
+
+\end{document}

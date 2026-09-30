@@ -1,0 +1,6 @@
+x label solved total
+0 Netlib/simplex 90 90
+1 Netlib/IPM 86 90
+2 Netlib/PDLP 83 90
+3 MIPLIB3/BnB 25 64
+4 Maros/QP-IPM 121 138

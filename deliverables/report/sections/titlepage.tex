@@ -1,0 +1,48 @@
+% Title page with the SIH26119 identifiers.
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[navy] (current page.north west) rectangle ([yshift=-88mm]current page.north east);
+  \fill[saffron] ([yshift=-88mm]current page.north west) rectangle ([yshift=-91mm]current page.north east);
+  \fill[igreen] ([yshift=-91mm]current page.north west) rectangle ([yshift=-92.5mm]current page.north east);
+  % a small sparse-matrix motif in the band
+  \begin{scope}[shift={([xshift=-62mm,yshift=-18mm]current page.north east)}]
+    \foreach \i/\j in {0/0,1/1,2/2,3/3,4/4,5/5,6/6,0/3,3/0,1/5,5/1,2/6,6/2,4/6,6/4,0/6,6/0,3/5,5/3}{
+      \fill[white,opacity=0.85] (\j*6mm,-\i*6mm) rectangle ++(4.6mm,-4.6mm);}
+    \foreach \i/\j in {1/3,3/1,2/5,5/2}{\fill[saffron] (\j*6mm,-\i*6mm) rectangle ++(4.6mm,-4.6mm);}
+  \end{scope}
+  \node[anchor=north west,text=white,font=\sffamily\bfseries\small,align=left]
+    at ([xshift=26mm,yshift=-18mm]current page.north west) {SMART INDIA HACKATHON 2026\\[1pt]
+    \mdseries Problem statement SIH26119};
+  \node[anchor=north west,text=white,font=\sffamily\bfseries,align=left]
+    at ([xshift=25mm,yshift=-36mm]current page.north west) {\fontsize{46}{50}\selectfont NIRNAY};
+  \node[anchor=north west,text=white,font=\sffamily\large,align=left,text width=105mm]
+    at ([xshift=26mm,yshift=-58mm]current page.north west)
+    {An indigenous LP\,/\,MILP\,/\,QP optimisation solver, written from the mathematics up};
+\end{tikzpicture}
+
+\vspace*{92mm}
+
+{\sffamily\LARGE\bfseries\color{navy} Technical report}\par\vspace{2mm}
+{\sffamily\large\color{muted} Algorithms, numerical safeguards, verification and benchmark results}\par
+\vspace{14mm}
+
+\renewcommand{\arraystretch}{1.45}
+{\sffamily\small
+\begin{tabularx}{\linewidth}{@{}>{\bfseries\color{navy}}l@{\hspace{8mm}}X@{}}
+Problem statement ID & SIH26119\\
+Problem statement title & Indigenous GPU-Accelerated Optimization Solver (Sovereign Alternative to \mbox{Xpress/CPLEX})\\
+Organisation & Mangalore Refinery and Petrochemicals Limited (MRPL)\\
+Theme & Smart Automation\\
+Category & Software\\
+Team & ZeroCloud\\
+Software & \nirnay{} 0.1.0 (Python~\verPython, NumPy~\verNumpy, Numba~\verNumba, CuPy~\verCupy)\\
+Date & \today\\
+\end{tabularx}}
+
+\vfill
+{\sffamily\footnotesize\color{muted}
+Every benchmark number in this report is read from the CSV files in \file{results/} by
+\file{deliverables/report/gen\_data.py}; none is typed by hand. Rebuilding after a new sweep updates the
+text, tables and plots together.}
+\end{titlepage}

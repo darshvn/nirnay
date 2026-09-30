@@ -1,0 +1,333 @@
+% Section 13: benchmark results and failure analysis.
+\section{Benchmark results}\label{sec:results}
+
+\pgfplotsset{discard if not/.style 2 args={
+  x filter/.append code={\edef\tempa{\thisrow{#1}}\edef\tempb{#2}\ifx\tempa\tempb\else\def\pgfmathresult{inf}\fi}}}
+
+Three public test sets are used, all with published optimal values: the \nSpxTot{} LPs of
+Netlib~\cite{gay1985}, from $\netlibMinRows$ to $\netlibMaxRows$ rows and up to \netlibMaxNnz{}
+nonzeros (\code{\netlibMaxName}); the \nMipList{} MILPs of MIPLIB~3~\cite{bixby1998}; and the
+\nQpList{} convex QPs of Maros and Mészáros~\cite{maros1999}. The large LPs of \cref{sec:pdlp} come
+from Mittelmann's benchmark sets~\cite{mittelmann}. Every number below is read from the result files
+named in the captions. \Cref{tab:summary} gives the overview and \cref{fig:bars} the solved counts.
+
+\ifnum\haveInProgress=1
+\begin{keybox}[Sweeps still running when this report was built]
+\file{gen\_data.py} analyses the newest sweep of each suite that covers every instance. The following
+newer sweeps were still running and are not yet in the headline numbers: \inProgressList. Where a
+comparison with them is meaningful on the instances finished so far, the text gives it and says so.
+Rerunning \file{gen\_data.py} and \code{latexmk} after they finish updates every number.
+\end{keybox}
+\fi
+
+\begin{table}[tbp]
+\centering\small
+\caption[Summary of the benchmark sweeps]{Summary of the benchmark sweeps. ``Solved'' uses the
+criteria of \cref{sec:verification}. Times are shifted geometric means (shift \shiftA\,s) over the
+instances \nirnay{} solves, for \nirnay{} and for the reference on the same instances.}
+\label{tab:summary}
+\begin{tabular}{@{}l l l r r r r@{}}
+\toprule
+Suite & Engine & Reference & Solved & \nirnay{} (s) & Ref.\ (s) & Ratio\\
+\midrule
+Netlib LP & dual simplex (\spxVer) & HiGHS & \nSpx/\nSpxTot & \sgmSpx & \sgmSpxRef & \ratioSpx\\
+Netlib LP & interior point (\ipmVer) & HiGHS & \nIpm/\nIpmTot & \sgmIpm & \sgmIpmRef & \ratioIpm\\
+Netlib LP & PDLP, $10^{-4}$ & HiGHS & \nPdlp/\nPdlpTot$^{a}$ & \sgmPdlp & \sgmPdlpRef & \ratioPdlp\\
+MIPLIB 3 & branch-and-bound (\mipVer) & HiGHS & \nMip/\nMipTot$^{b}$ & \sgmMip & \sgmMipRef & \ratioMip\\
+Maros--Mészáros & QP interior point & Clarabel & \nQp/\nQpTot & \sgmQp & \sgmQpRef & \ratioQp\\
+\bottomrule
+\multicolumn{7}{@{}l}{\footnotesize $^a$ status \code{optimal} at relative KKT $10^{-4}$; objective errors in \cref{sec:pdlp-results}.\quad
+$^b$ \tlMip\,s limit; HiGHS proves \nMipRefOpt.}
+\end{tabular}
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.82\linewidth, height=5.2cm,
+  xbar, bar shift=0pt, bar width=9pt,
+  xmin=0, enlarge y limits=0.14,
+  ytick=data, yticklabels from table={data/solved_bars.dat}{label},
+  y dir=reverse,
+  xlabel={instances},
+  xmajorgrids,
+  nodes near coords, nodes near coords style={font=\sffamily\scriptsize},
+  every node near coord/.append style={anchor=west},
+  legend style={at={(1,1.03)},anchor=south east}, legend columns=2,
+]
+\addplot[fill=rule,draw=muted] table[x=total,y=x] {data/solved_bars.dat};
+\addplot[fill=saffron,draw=saffron!80!black,nodes near coords style={text=white,anchor=east}] table[x=solved,y=x] {data/solved_bars.dat};
+\legend{instances run, solved}
+\end{axis}
+\end{tikzpicture}
+\caption[Solved instances per suite]{Solved instances per suite and engine (from
+\file{data/solved\_bars.dat}, generated from \file{results/}). PDLP counts status \code{optimal} at its
+$10^{-4}$ tolerance.}
+\label{fig:bars}
+\end{figure}
+
+\subsection{Netlib LP: correctness}
+The dual simplex solves all \nSpx{} of the \nSpxTot{} Netlib problems to the reference objective
+(file \file{\spxFile}). The median relative objective error is \medErrSpx{} and the largest \maxErrSpx{},
+so the answers are vertex solutions exact to rounding. The interior-point method solves \nIpm{} (median
+error \medErrIpm, largest \maxErrIpm). \Cref{fig:ecdf} shows the distribution of the errors for every
+engine. The interior-point failures are analysed in \cref{sec:ipm-fail}.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.9\linewidth, height=6cm,
+  xlabel={$\log_{10}$ relative objective error against the reference},
+  ylabel={fraction of scored instances},
+  xmin=-17.2, xmax=0, ymin=0, ymax=1.02,
+  grid=major, legend cell align=left,
+  legend style={at={(0.5,-0.22)},anchor=north}, legend columns=2,
+]
+\addplot[nspx,const plot] table[x=logerr,y=frac] {data/ecdf_spx.dat};
+\addplot[nipm,const plot] table[x=logerr,y=frac] {data/ecdf_ipm.dat};
+\addplot[npdlp,const plot] table[x=logerr,y=frac] {data/ecdf_pdlp.dat};
+\addplot[igreen,line width=1.1pt,const plot] table[x=logerr,y=frac] {data/ecdf_qp.dat};
+\addplot[navy,line width=1.1pt,densely dashed,const plot] table[x=logerr,y=frac] {data/ecdf_mip.dat};
+\addplot[muted,dashed,forget plot] coordinates {(-6,0) (-6,1.02)};
+\addplot[muted,dashed,forget plot] coordinates {(-4,0) (-4,1.02)};
+\legend{dual simplex (Netlib), interior point (Netlib), {PDLP, status optimal (Netlib)}, QP interior point (Maros--Mészáros), branch-and-bound (MIPLIB 3)}
+\end{axis}
+\end{tikzpicture}
+\caption[Distribution of relative objective errors]{Cumulative distribution of the relative
+objective error \eqref{eq:relerr} over the instances each engine reports optimal (for LP, QP and the
+dual simplex: the instances counted as solved; for PDLP: every status \code{optimal}). Errors of
+exactly zero are plotted at $10^{-17}$. Dashed lines: the $10^{-6}$ LP/QP and $10^{-4}$ MILP criteria.}
+\label{fig:ecdf}
+\end{figure}
+
+\subsection{Netlib LP: speed}
+\Cref{fig:profile} shows the performance profiles of the dual simplex, the interior-point method and
+HiGHS on Netlib, and \cref{fig:scatter} plots every instance's time against the reference's.
+
+\begin{honestbox}[Speed, stated plainly]
+\nirnay{}'s dual simplex is faster than HiGHS on \nFasterSpx{} of the \nSpx{} Netlib problems it solves.
+Its shifted geometric mean time is \sgmSpx\,s against \sgmSpxRef\,s, a ratio of \ratioSpx{} with a
+\shiftA\,s shift and \ratioSpxTenShift{} with a \shiftB\,s shift. The per-instance ratios have
+geometric mean \gmrSpx{}, median \medrSpx{} and maximum \maxrSpx{}. The shifted mean understates the
+gap because most Netlib problems solve in milliseconds, so the per-instance ratios are the fairer
+summary: \nirnay{} is about \gmrSpx{} times slower. On load-normalised times (\cref{fig:profile}), the
+interior-point method is faster than the simplex on \nIpmFasterThanSpx{} of the \nBothSolved{} problems
+both solve, and taking the faster of the two engines on each problem gives a shifted-mean ratio of
+\bestOfTwoRatio{} against HiGHS.
+\end{honestbox}
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.9\linewidth, height=6.2cm,
+  xmode=log, log basis x=2,
+  xmin=1, xmax=\profTauMax, ymin=0, ymax=1.02,
+  xlabel={$\tau$ (time relative to the fastest of the solvers shown)},
+  ylabel={$\rho_s(\tau)$},
+  grid=major, legend pos=south east, legend cell align=left,
+  log number format basis/.code 2 args={\pgfmathparse{#1^#2}\pgfmathprintnumber{\pgfmathresult}},
+]
+\addplot[nhighs,const plot] table[x=tau,y=rho] {data/profile_highs.dat};
+\addplot[nspx,const plot] table[x=tau,y=rho] {data/profile_spx.dat};
+\addplot[nipm,const plot] table[x=tau,y=rho] {data/profile_ipm.dat};
+\legend{HiGHS, \nirnay{} dual simplex, \nirnay{} interior point}
+\end{axis}
+\end{tikzpicture}
+\caption[Performance profile on Netlib]{Dolan--Moré performance profile on the \nProf{} Netlib
+problems. Times come from \file{\spxFile} and \file{\ipmFile}. The two sweeps ran under different
+machine load (HiGHS itself was \sweepLoadRatio{} times slower, in geometric mean, in the first than in
+the second), so each engine's time is rescaled by the ratio of the common HiGHS time (the geometric
+mean of its two measurements) to HiGHS's time in that engine's sweep. HiGHS is
+fastest on a fraction \rhoOneHighs{} of the problems. The dual simplex is within a factor of 10 of the
+fastest on a fraction \rhoTenSpx{} and within \tauAllSpx{} on all of them. The interior-point
+method's curve stays below~1 because of its failures.}
+\label{fig:profile}
+\end{figure}
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}
+\begin{groupplot}[
+  group style={group size=2 by 2, horizontal sep=14mm, vertical sep=16mm},
+  width=0.49\linewidth, height=0.47\linewidth,
+  xmode=log, ymode=log,
+  xlabel={reference time (s)}, ylabel={\nirnay{} time (s)},
+  grid=major, unbounded coords=discard,
+  title style={font=\sffamily\footnotesize\bfseries,color=navy},
+]
+\nextgroupplot[title={Netlib: dual simplex vs.\ HiGHS}, xmin=1e-4, xmax=1e3, ymin=1e-4, ymax=1e3]
+  \addplot[muted,dashed,domain=1e-4:1e3,samples=2,forget plot] {x};
+  \addplot[muted!60,dotted,domain=1e-4:1e2,samples=2,forget plot] {10*x};
+  \addplot[only marks,mark=*,mark size=1.3pt,color=saffron,discard if not={ok}{1}] table[x=ref,y=time] {data/scatter_spx.dat};
+  \addplot[only marks,mark=x,mark size=2.4pt,color=navy,thick,discard if not={ok}{0}] table[x=ref,y=time] {data/scatter_spx.dat};
+\nextgroupplot[title={Netlib: interior point vs.\ HiGHS}, xmin=1e-4, xmax=1e3, ymin=1e-4, ymax=1e3]
+  \addplot[muted,dashed,domain=1e-4:1e3,samples=2,forget plot] {x};
+  \addplot[muted!60,dotted,domain=1e-4:1e2,samples=2,forget plot] {10*x};
+  \addplot[only marks,mark=*,mark size=1.3pt,color=sky,discard if not={ok}{1}] table[x=ref,y=time] {data/scatter_ipm.dat};
+  \addplot[only marks,mark=x,mark size=2.4pt,color=navy,thick,discard if not={ok}{0}] table[x=ref,y=time] {data/scatter_ipm.dat};
+\nextgroupplot[title={MIPLIB 3: branch-and-bound vs.\ HiGHS}, xmin=1e-2, xmax=2e2, ymin=1e-2, ymax=2e2]
+  \addplot[muted,dashed,domain=1e-2:2e2,samples=2,forget plot] {x};
+  \addplot[muted!60,dotted,domain=1e-2:2e1,samples=2,forget plot] {10*x};
+  \addplot[only marks,mark=*,mark size=1.3pt,color=igreen,discard if not={ok}{1}] table[x=ref,y=time] {data/scatter_mip.dat};
+  \addplot[only marks,mark=x,mark size=2.4pt,color=navy,thick,discard if not={ok}{0}] table[x=ref,y=time] {data/scatter_mip.dat};
+\nextgroupplot[title={Maros--Mészáros: QP-IPM vs.\ Clarabel}, xmin=1e-4, xmax=1e3, ymin=1e-4, ymax=1e3]
+  \addplot[muted,dashed,domain=1e-4:1e3,samples=2,forget plot] {x};
+  \addplot[muted!60,dotted,domain=1e-4:1e2,samples=2,forget plot] {10*x};
+  \addplot[only marks,mark=*,mark size=1.3pt,color=plum,discard if not={ok}{1}] table[x=ref,y=time] {data/scatter_qp.dat};
+  \addplot[only marks,mark=x,mark size=2.4pt,color=navy,thick,discard if not={ok}{0}] table[x=ref,y=time] {data/scatter_qp.dat};
+\end{groupplot}
+\end{tikzpicture}
+\caption[Time against reference time]{Time of \nirnay{} against the time of the reference solver, per
+instance, on log--log axes. Dots: solved; crosses: not solved (plotted at the time used). Dashed:
+equal time; dotted: ten times slower. Points above the dashed line are instances where \nirnay{} is
+slower. On MIPLIB the \tlMip\,s limit shows as a horizontal row of crosses.}
+\label{fig:scatter}
+\end{figure}
+
+\paragraph{Where the time goes}
+The iteration counts are reasonable: the median Netlib solve takes \medItSpx{} dual iterations, and
+\cref{fig:iters} shows the count growing roughly in proportion to $m+n$, as expected for a dual simplex.
+The cost is in each iteration. Every step calls several compiled kernels (pricing, BTRAN, pivot row,
+ratio test, two or three FTRANs, updates) from a Python loop. On small problems the Python overhead
+of each call exceeds the arithmetic. On large ones the linear algebra is less refined than in
+production codes: FTRAN and BTRAN work on dense vectors of length $m$ instead of exploiting
+hyper-sparsity, the product-form update grows the eta file where a Forrest--Tomlin update would
+modify $U$ in place. \ifnum\spxHasPresolve=1 The simplex sweep analysed here runs with presolve,
+which is still written in plain Python; its cost and benefit are measured in \cref{sec:presolve}.\else
+The sweeps analysed here ran without presolve; its effect is measured in \cref{sec:presolve}.\fi{} \Cref{sec:roadmap} lists the remedies in the order we expect them to pay.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.62\linewidth, height=5.2cm, xmode=log, ymode=log,
+  xlabel={$m+n$ (rows + columns)}, ylabel={dual simplex iterations},
+  grid=major, legend pos=north west, legend cell align=left,
+]
+\addplot[only marks,mark=*,mark size=1.2pt,color=saffron] table[x=mn,y=iters] {data/iters_spx.dat};
+\addplot[muted,dashed,domain=40:30000,samples=2] {x};
+\legend{Netlib problems, iterations $=m+n$}
+\end{axis}
+\end{tikzpicture}
+\caption[Dual simplex iterations against problem size]{Dual simplex iterations (phase~1, phase~2
+and cleanup together) against $m+n$ on the Netlib problems.}
+\label{fig:iters}
+\end{figure}
+
+\subsection{Interior-point failures}\label{sec:ipm-fail}
+\begin{table}[ht]
+\centering\small
+\caption[Interior-point failures on Netlib]{Netlib problems the interior-point method does not solve (\file{\ipmFile}).}
+\label{tab:ipm-fail}
+\begin{tabular}{@{}l rr l r r r@{}}
+\toprule
+Problem & $m$ & $n$ & status & rel.\ err & time (s) & iterations\\
+\midrule
+\rows{data/ipm_failures.tex}
+\bottomrule
+\end{tabular}
+\end{table}
+\Cref{tab:ipm-fail} lists the failures. All end in the stall rule's
+\code{numerical\_error}, and \nIpmNear{} of them are within $10^{-3}$ of the optimum when they stop. These
+are the problems known to be hard for interior-point methods without presolve. The comparator study
+found Clarabel and GLPK's interior point also failing on \code{greenbea} without presolve. The
+\code{pilot} models have coefficients spanning many orders of magnitude, and \code{dfl001}'s normal
+matrix fills heavily. Production IPMs solve them with presolve, crossover to a basis, and
+more careful handling of free variables. Within \nirnay{}, the dual simplex solves all of them.
+
+\subsection{MIPLIB 3}\label{sec:mip-results}
+\ifnum\nMipTot<\nMipList
+\begin{keybox}[Partial sweep]
+The MIPLIB sweep (\file{\mipFile}) had finished \nMipTot{} of the \nMipList{} instances when this
+report was built. The numbers below cover those instances and update when \file{gen\_data.py} is rerun.
+\end{keybox}
+\fi
+With a \tlMip\,s limit, branch-and-bound proves \nMip{} of \nMipTot{} instances optimal, all with the
+reference objective. No instance was declared optimal with a wrong objective (\nMipWrongOpt{}). HiGHS,
+under the same limit, proves \nMipRefOpt. \nMipBothOpt{} instances are proved by both, \nMipRefOnly{}
+only by HiGHS, and \nMipOnlyUs{} only by \nirnay{}. \nirnay{} is faster than HiGHS on \nFasterMip{}
+of its solved instances (\fasterMipNames). On the instances it solves, its shifted geometric mean time is
+\sgmMip\,s against \sgmMipRef\,s for HiGHS, \ratioMip{} times slower.
+
+The instances not proved fall into three groups:
+\begin{itemize}
+  \item \textbf{optimum found, not proved} (\nMipFoundNotProved): \mipFoundNotProvedNames. The incumbent is
+        optimal, but the bound does not close in time;
+  \item \textbf{incumbent with a gap} (\nMipIncumbent{} with an incumbent at the limit, of which
+        \nMipGapBelowOnePct{} are within $1\%$ and \nMipGapBelowTenPct{} within $10\%$), see \cref{fig:gaps};
+  \item \textbf{no incumbent at all} (\nMipNoIncumbent): \mipNoIncumbentNames. These are mostly
+        large set-partitioning and network-design models, where rounding and diving fail and each LP is
+        expensive.
+\end{itemize}
+The causes are the ones the comparator study (\cref{sec:competitors}) points to. \nirnay{}'s MIP presolve
+only tightens bounds. Its only cut family is Gomory mixed-integer; production codes add MIR, knapsack
+cover, flow cover, clique and zero-half cuts. It has no feasibility pump, no feasibility jump and no
+large-neighbourhood search. Node throughput is low: the median solved instance processes
+\mipNodesPerSec{} nodes per second at a median of \mipLpItersPerNode{} dual iterations per node, and
+each node pays the Python overhead of the simplex driver. The largest search on record took
+\maxNodesMip{} nodes.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.8\linewidth, y=10.5pt,
+  xbar, bar width=6pt, xmode=log, log origin=infty,
+  xmin=1e-4, xmax=2,
+  ytick=data, yticklabels from table={data/mip_gaps.dat}{name},
+  yticklabel style={font=\ttfamily\scriptsize},
+  xlabel={relative gap at the time limit}, xmajorgrids, enlarge y limits={abs=0.7},
+  y dir=reverse,
+]
+\addplot[fill=saffron,draw=saffron!80!black] table[x=gap,y=idx] {data/mip_gaps.dat};
+\end{axis}
+\end{tikzpicture}
+\caption[MIPLIB 3: gap at the time limit]{MIPLIB~3 instances that reached the \tlMip\,s limit with an
+incumbent: relative gap $|f-\underline z|/\max(1,|f|)$ at the limit (log scale). The target is $10^{-4}$.}
+\label{fig:gaps}
+\end{figure}
+
+\ifnum\haveMipVtwo=1
+\paragraph{Effect of cuts and presolve} The sweep with Gomory cuts and presolve
+(\file{\mipNewerFile})\ifnum\mipNewerPartial=1{} was still running when this report was built, with
+\mipNewerDone{} of \nMiplibFiles{} instances finished\fi. It proves \mipNewerSolved{} of them optimal.
+On the \nMipCommon{} instances both sweeps cover, it proves \nMipCutsGained{} instances that v1 (no
+cuts, no presolve) did not (\mipGainedNames), and loses \nMipCutsLost{} (\mipLostNames).
+\fi
+
+\subsection{Maros--Mészáros QP}
+The QP interior point solves \nQp{} of the \nQpTot{} problems (\file{\qpFile}), with a median error of
+\medErrQp{} and a median of \medItQp{} iterations (the most \maxItQp). It is faster than Clarabel on
+\nFasterQp{} of them, and slower by a factor of \ratioQp{} in shifted geometric mean. The rest divide as
+follows:
+\begin{itemize}
+  \item \textbf{reference failed} (\nQpRefBad): \qpRefBadNames. Clarabel did not report a solution,
+        so these count as not solved whatever \nirnay{} returned;
+  \item \textbf{accepted loosely} (\nQpLoose): \qpLooseNames. \nirnay{} reports \code{optimal} with an
+        objective error between $10^{-6}$ and $10^{-3}$ against the reference: points whose relative
+        residuals met the tolerance while the objective error did not (or, see below, reference error);
+  \item \textbf{wrong answer} (\nQpWrongBig): \qpWrongBigNames. Reported \code{optimal} with a large
+        objective error against the reference;
+  \item \textbf{numerical error} (\nQpNumErr): \qpNumErrNames. The stall rule gave up. Clarabel itself
+        reports only \code{AlmostSolved} on \nQpAlmostRef{} of the problems \nirnay{} does not solve;
+  \item \textbf{other} (\nQpOther): \qpOtherNames. The solve stopped at the time limit, or the
+        benchmark process returned no status; these count as not solved.
+\end{itemize}
+\ifnum\nQpLooseOrWrong>0 The wrong and loose answers show the weak point of the QP method: its
+termination rule trusts relative residuals that do not bound the objective error on badly scaled
+problems.\else No problem is reported \code{optimal} with an objective error above $10^{-6}$: every
+failure is an honest status (numerical error, time limit) rather than a wrong answer.\fi{}
+\ifnum\nQpRefAnnotated>0 On \nQpRefAnnotated{} files the two MPS parsers disagree, and the reference
+solves \nirnay{}'s reading (\cref{sec:verification}).\fi{}
+\ifnum\qpVerNum=1 Not every entry above is \nirnay{}'s fault. This sweep used the first version of the
+QP reference, whose two defects are described in \cref{sec:verification}: Clarabel at default
+tolerances, and HiGHS's parser misreading \code{DPKLO1} and dropping small coefficients in
+\code{HUESTIS}, \code{HUES-MOD} and \code{KSIP}. Some ``loose'' and ``wrong'' entries, \code{DPKLO1} among
+them, may be reference errors, and the corrected reference will tell. The changes described in \cref{sec:qp} (the gap measured with the objective
+constant, the residual check on every direction, and the floored starting point) were made in response
+to this sweep. \ifnum\haveQpNew=1 The sweep that measures them was still running when this report was
+built.\fi\fi{} Presolve is not yet applied to QPs. \Cref{tab:maros-full} in the appendix lists every
+problem.

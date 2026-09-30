@@ -1,0 +1,237 @@
+% Section 5: sparse linear algebra.
+\section{Sparse linear algebra}\label{sec:linalg}
+
+Every engine except PDLP spends most of its time solving linear systems: the simplex with the basis
+matrix $B$, the LP interior-point method with the normal matrix $M=B\Theta B\T$, and the QP method with
+the augmented matrix $K$. \nirnay{} implements the three factorisations it needs and the
+fill-reducing ordering they share. All numeric kernels are Numba-compiled loops over plain CSC
+arrays.
+
+\subsection{Sparse LU of the simplex basis}\label{sec:lu}
+\file{linalg/lu.py} factorises $BQ=\tilde L U$, where $Q$ is a column order, $U$ is upper
+triangular in pivot order, and $\tilde L$ is unit lower triangular up to a row permutation (column
+$k$ of $\tilde L$ has its unit entry at the pivot row $p_k$).
+
+\paragraph{Column order}
+Logical (slack) columns come first. They are signed unit vectors and factor at no cost, and a simplex
+basis consists mostly of them. Structural columns follow in order of increasing length, a cheap
+stand-in for a fill-reducing order that works well on such mostly-logical bases.
+
+\paragraph{Left-looking elimination}
+Column $k$ is computed by the sparse triangular solve of Gilbert and Peierls~\cite{gilbert1988}:
+\begin{equation}\label{eq:gp}
+  \tilde L_{:,1:k-1}\, x = B_{:,q_k},
+\end{equation}
+where only columns of $\tilde L$ already computed take part. The rows that become nonzero in
+$x$ are exactly the nodes reachable from the nonzeros of $B_{:,q_k}$ in the graph of $\tilde L$. An
+iterative depth-first search finds them in topological order, so the numeric solve touches only
+those rows. The work is proportional to the floating-point operations, not to~$m$. Entries of $x$
+in already-pivoted rows form column $k$ of~$U$; the others are the candidates for the pivot.
+
+\paragraph{Threshold pivoting}
+Among unpivoted rows $r$ with $|x_r|\ge\tau\max_{r'}|x_{r'}|$ ($\tau=0.1$), the pivot is the row
+with the fewest nonzeros in $B$, with ties broken by magnitude. This is Markowitz's idea
+\cite{markowitz1957} applied row-wise: it gives up a little stability for much less fill.
+
+\paragraph{Basis repair}
+If no candidate exceeds $10^{-11}$, column $q_k$ depends on the columns before it. Rather than
+reject the basis, the factorisation leaves step $k$ unpivoted and reports a pair (basis position,
+unpivoted row). The simplex then swaps that basic variable for the row's logical, which is always
+independent of the rest, and refactorises. Near-singular bases arise from rounding and from
+degenerate pivots on models such as the \code{pilot} family, and industrial simplex codes keep
+going the same way.
+
+\paragraph{Updates}
+After a pivot that replaces basis position $r$ by a column with $\alpha_q=B^{-1}a_q$, the new inverse
+is $B_{\text{new}}^{-1}=E^{-1}B^{-1}$ with the elementary eta matrix
+\begin{equation}\label{eq:eta}
+  E = I + (\alpha_q - e_r)e_r\T,\qquad
+  E^{-1}v = v - \frac{v_r}{\alpha_{q,r}}(\alpha_q - e_r) ,
+\end{equation}
+the product form of the inverse~\cite{dantzig1954}. The eta file stores $\alpha_q$ sparsely,
+dropping entries below $10^{-14}$. FTRAN ($B x = b$) applies the LU solve and then the etas in order;
+BTRAN ($B\T y=d$) applies the etas in reverse and then the transposed LU solve. The basis is
+refactorised after 100 updates, or earlier when the eta file holds more than
+$8(\nnz(\tilde L)+\nnz(U)+m)$ entries, to bound both the work per solve and the growth of rounding
+error.
+
+\begin{algorithm}[t]
+\caption{Left-looking sparse LU with threshold pivoting and repair (\file{linalg/lu.py})}\label{alg:lu}
+\Input{basis $B$ (CSC), column order $q$, row counts $\rho_r$, threshold $\tau$, tiny $\epsilon$}
+\Output{$\tilde L$, $U$, pivot rows $p$, list of unpivoted steps}
+\For{$k=1,\dots,m$}{
+  $\mathcal{X}\leftarrow$ reach of $\operatorname{struct}(B_{:,q_k})$ in the graph of $\tilde L$, in topological order (DFS)\;
+  scatter $x\leftarrow B_{:,q_k}$; \ForEach{$r\in\mathcal X$ with $r$ pivoted at step $s$}{$x_{\mathcal{L}_s}\leftarrow x_{\mathcal{L}_s}-\tilde L_{\mathcal{L}_s,s}\,x_r$}
+  $U_{:,k}\leftarrow\{x_r : r \text{ pivoted}\}$;\quad $a_{\max}\leftarrow\max\{|x_r|: r\text{ unpivoted}\}$\;
+  \eIf{$a_{\max}>\epsilon$}{
+    $p_k\leftarrow\arg\min\{\rho_r : r \text{ unpivoted},\ |x_r|\ge\tau a_{\max}\}$ \Comment*[r]{shortest row}
+    $U_{kk}\leftarrow x_{p_k}$;\quad $\tilde L_{:,k}\leftarrow x_{\text{unpivoted}}/x_{p_k}$\;
+  }{
+    record step $k$ as singular \Comment*[r]{caller swaps in a logical}
+  }
+  clear $x$ on $\mathcal X$\;
+}
+\end{algorithm}
+
+\subsection{Sparse Cholesky for the normal equations}\label{sec:chol}
+The LP interior-point method solves $M\,\Delta y=r$ with $M=B\Theta B\T+\delta I$ symmetric
+positive definite and the same sparsity pattern at every iteration. \file{linalg/cholesky.py}
+splits the work in the classic way~\cite{davis2006}:
+\begin{enumerate}
+  \item \textbf{Analyse} once. Compute a fill-reducing permutation $P$ (\cref{sec:ordering}), the
+        upper triangle of $PMP\T$ with a map back to $M$'s values, the elimination tree
+        ($\operatorname{parent}(i)=\min\{k>i: l_{ki}\ne0\}$, computed with path compression), and
+        the column counts of $L$ from the row subtrees. $L$'s pattern is then allocated exactly.
+  \item \textbf{Factor} every iteration, by the up-looking algorithm. Row $k$ of $L$ solves
+        \begin{equation}\label{eq:uplook}
+          L_{1:k-1,1:k-1}\; l_{k} = m_{1:k-1,k},\qquad
+          L_{kk} = \sqrt{m_{kk} - l_k\T l_k},
+        \end{equation}
+        and the nonzeros of $l_k$ are the nodes on the paths from the nonzeros of $m_{1:k-1,k}$
+        up the elimination tree to $k$ (the row subtree).
+  \item \textbf{Solve} $LL\T\hat x = P b$ by forward and back substitution.
+\end{enumerate}
+
+\paragraph{Pivot guard}
+As the interior-point iterates converge, $M$ becomes nearly singular: rows may be dependent,
+and $\Theta$ spans many orders of magnitude. If the pivot $m_{kk}-l_k\T l_k\le 10^{-30}$, it is
+replaced by $10^{128}$. The corresponding component of the solution then becomes (almost) zero
+instead of overflowing, which is the standard remedy~\cite[§11.1]{wright1997}. The number of
+replaced pivots is reported with each factorisation.
+
+\subsection{Minimum-degree ordering and fill-in}\label{sec:ordering}
+Eliminating a node of the graph of a symmetric matrix joins all its neighbours into a clique, and
+the new edges are exactly the fill-in of~$L$. \file{linalg/ordering.py} implements the minimum-degree
+heuristic~\cite{tinney1967,george1989}: it repeatedly eliminates a node of smallest current degree,
+on an explicit elimination graph with degree buckets. Two refinements matter on optimisation
+matrices:
+\begin{itemize}
+  \item \textbf{mass elimination:} neighbours whose closed neighbourhood equals the pivot's would each
+        be chosen next anyway, so they are eliminated together. This removes most of the cost on
+        block-structured matrices;
+  \item \textbf{dense-row deferral:} nodes with degree above $\max(16,10\sqrt n)$ are taken out of the
+        graph and ordered last. Normal matrices of LPs often have a few almost-dense rows, and
+        ordering them last both bounds the work of the ordering and keeps the dense part of $L$ in
+        the final block.
+\end{itemize}
+\Cref{fig:fill} shows why the order matters on the smallest example, an arrowhead matrix.
+
+\begin{figure}[tbp]
+\centering
+\newcommand{\cell}[3]{\fill[#3] ({(#2-1)*0.42},{-(#1-1)*0.42}) rectangle ++(0.36,-0.36);}
+\begin{tikzpicture}
+  % ---- left: hub first
+  \begin{scope}
+    \draw[rule] (-0.06,0.06) rectangle (2.52,-2.52);
+    \foreach \i in {1,...,6}{\cell{\i}{\i}{navy}}
+    \foreach \j in {2,...,6}{\cell{1}{\j}{navy}\cell{\j}{1}{navy}}
+    \foreach \i in {2,...,6}{\foreach \j in {2,...,6}{\ifnum\i=\j\else\cell{\i}{\j}{saffron}\fi}}
+    \node[lbl,text=ink,align=center] at (1.23,-2.95) {hub eliminated first\\[-1pt]20 fill entries};
+  \end{scope}
+  % graph in the middle
+  \begin{scope}[shift={(4.4,-1.23)}]
+    \node[circle,draw=navy,fill=navy,text=white,inner sep=1.2pt,font=\sffamily\scriptsize] (h) at (0,0) {1};
+    \foreach \k/\a in {2/90,3/162,4/234,5/306,6/18}{
+      \node[circle,draw=navy,fill=white,inner sep=1.2pt,font=\sffamily\scriptsize] (n\k) at (\a:1.0) {\k};
+      \draw[navy] (h) -- (n\k);}
+    \draw[saffron,densely dashed] (n2)--(n3) (n3)--(n4) (n4)--(n5) (n5)--(n6) (n6)--(n2) (n2)--(n4) (n2)--(n5) (n3)--(n5) (n3)--(n6) (n4)--(n6);
+    \node[lbl,text=ink,align=center] at (0,-1.72) {graph of $M$; dashed: clique\\[-1pt]created by eliminating node 1};
+  \end{scope}
+  % ---- right: hub last (minimum degree)
+  \begin{scope}[shift={(6.9,0)}]
+    \draw[rule] (-0.06,0.06) rectangle (2.52,-2.52);
+    \foreach \i in {1,...,6}{\cell{\i}{\i}{navy}}
+    \foreach \j in {1,...,5}{\cell{6}{\j}{navy}\cell{\j}{6}{navy}}
+    \node[lbl,text=ink,align=center] at (1.23,-2.95) {minimum degree: hub last\\[-1pt]no fill};
+  \end{scope}
+  \node[lbl,anchor=west] at (9.7,-0.2) {\tikz\fill[navy] (0,0) rectangle (0.25,0.25); nonzero of $M$};
+  \node[lbl,anchor=west] at (9.7,-0.7) {\tikz\fill[saffron] (0,0) rectangle (0.25,0.25); fill in $L+L\T$};
+\end{tikzpicture}
+\caption[Fill-in and ordering]{Fill-in and ordering on an arrowhead matrix. Eliminating the hub
+first (left) makes its five neighbours a clique (middle), and $L$ becomes dense. Minimum degree
+eliminates the leaves first and the hub last (right), and $L$ has no fill at all. The same effect,
+on a large scale, decides whether the normal matrix of an LP can be factorised at all.}
+\label{fig:fill}
+\end{figure}
+
+\subsection{Assembling the normal matrix}\label{sec:normal}
+$M = B\Theta B\T + \diag(\delta)$ changes its values at every interior-point iteration but not its
+pattern. \file{linalg/normal.py} therefore computes once the full pattern of $BB\T$ (with sorted
+row indices) and a \emph{slot map}. For each row $k$ of $B$, each column $j$ in that row, and each
+entry $i$ of column $j$, the map gives the position of $M_{ik}$ in the value array. Each
+iteration then assembles $M$ in one pass,
+\begin{equation}\label{eq:assemble}
+  M_{\text{slot}(q)} \mathrel{+}= \theta_j\, b_{kj}\, b_{ij},\qquad q=1,2,\dots,\ \sum_j \nnz(b_j)^2 ,
+\end{equation}
+with no searching and no allocation, followed by the diagonal term $\delta_k$.
+
+\subsection{Quasi-definite \texorpdfstring{$LDL\T$}{LDLT} for the QP augmented system}\label{sec:ldl}
+The QP method solves systems with the regularised augmented matrix
+\begin{equation}\label{eq:qd}
+  K=\begin{bmatrix} -H & B\T\\ B & R\end{bmatrix},\qquad H = Q+D+\rho I\succ0,\quad R=\delta I\succ0,
+\end{equation}
+which is symmetric \emph{quasi-definite}. Vanderbei~\cite{vanderbei1995} showed that such a matrix
+has a factorisation $PKP\T=LDL\T$ with $D$ diagonal, $n$ negative and $m$ positive pivots, for
+\emph{every} symmetric permutation $P$. The ordering can therefore be chosen for sparsity alone,
+exactly as for Cholesky, and no pivoting for stability is needed during the numeric
+factorisation. \file{linalg/ldl.py} reuses the Cholesky analysis (minimum degree, elimination tree,
+column counts) and the up-looking $LDL\T$ kernel of Davis~\cite{davis2005}. The numeric step computes,
+for row $k$,
+\begin{equation}\label{eq:ldl}
+  L_{kj} = \frac{y_j}{D_{jj}},\qquad D_{kk} = k_{kk} - \sum_{j<k} L_{kj}\,y_j ,
+\end{equation}
+where $y$ solves the sparse triangular system for row $k$.
+
+\paragraph{Pivot floor}
+The signs of the pivots are known in advance: $\sigma_k=-1$ for a primal row of $K$ and $+1$ for a
+dual row. A pivot with the wrong sign, or smaller than $\delta_{\min}$ in magnitude, is replaced by
+$\sigma_k\delta_{\min}$ (dynamic regularisation, with $\delta_{\min}=10^{-11}$ in the QP method). The
+factorisation then always exists and has the correct inertia. The perturbation is removed by
+iterative refinement against the unregularised matrix (\cref{sec:qp}). \Cref{fig:kkt} shows the
+block structure.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  % K blocks
+  \fill[saffron!22] (0,0) rectangle (3.2,-3.2);
+  \fill[navy!14] (3.2,0) rectangle (5.2,-3.2);
+  \fill[navy!14] (0,-3.2) rectangle (3.2,-5.2);
+  \fill[igreen!18] (3.2,-3.2) rectangle (5.2,-5.2);
+  \draw[navy,line width=0.7pt] (0,0) rectangle (5.2,-5.2);
+  \draw[navy,line width=0.4pt] (3.2,0) -- (3.2,-5.2) (0,-3.2) -- (5.2,-3.2);
+  % sparsity motif
+  \foreach \p in {(0.3,-0.3),(0.7,-0.7),(1.1,-1.1),(1.5,-1.5),(1.9,-1.9),(2.3,-2.3),(2.7,-2.7),(3.05,-3.05),
+                  (0.7,-1.5),(1.5,-0.7),(1.1,-2.3),(2.3,-1.1)}{\fill[saffron!85!black] \p circle (0.05);}
+  \foreach \p in {(3.5,-3.5),(3.9,-3.9),(4.3,-4.3),(4.7,-4.7),(5.0,-5.0)}{\fill[igreen] \p circle (0.05);}
+  \foreach \p in {(3.5,-0.5),(3.5,-1.4),(3.9,-0.9),(4.3,-2.1),(4.7,-2.6),(5.0,-1.8),(4.3,-0.4),
+                  (0.5,-3.5),(1.4,-3.5),(0.9,-3.9),(2.1,-4.3),(2.6,-4.7),(1.8,-5.0),(0.4,-4.3)}{\fill[navy] \p circle (0.05);}
+  \node[font=\small,text=ink,fill=saffron!22,inner sep=2pt] at (1.6,-1.6) {$-(Q+D+\rho I)$};
+  \node[font=\small,text=ink,fill=navy!14,inner sep=2pt] at (4.2,-1.6) {$B\T$};
+  \node[font=\small,text=ink,fill=navy!14,inner sep=2pt] at (1.6,-4.2) {$B$};
+  \node[font=\small,text=ink,fill=igreen!18,inner sep=2pt] at (4.2,-4.2) {$\delta I$};
+  % dimension braces
+  \draw[decorate,decoration={brace,amplitude=4pt},muted] (0,0.12) -- node[above=3pt,lbl]{$n_B$ primal} (3.2,0.12);
+  \draw[decorate,decoration={brace,amplitude=4pt},muted] (3.2,0.12) -- node[above=3pt,lbl]{$m_B$ dual} (5.2,0.12);
+  % solution / rhs
+  \draw[navy] (6.0,0) rectangle (6.5,-5.2); \draw[navy] (6.0,-3.2) -- (6.5,-3.2);
+  \node[font=\small] at (6.25,-1.6) {$\Delta x$}; \node[font=\small] at (6.25,-4.2) {$\Delta y$};
+  \node[font=\small] at (6.9,-2.6) {$=$};
+  \draw[navy] (7.3,0) rectangle (7.8,-5.2); \draw[navy] (7.3,-3.2) -- (7.8,-3.2);
+  \node[font=\small] at (7.55,-1.6) {$\hat r$}; \node[font=\small] at (7.55,-4.2) {$r_b$};
+  % D signs
+  \begin{scope}[shift={(9.0,0)}]
+    \node[lbl,anchor=south] at (0.25,0.05) {pivots of $D$};
+    \foreach \k in {0,...,7}{\fill[saffron] (0,-\k*0.4) rectangle (0.5,-\k*0.4-0.36); \node[font=\sffamily\scriptsize,text=white] at (0.25,-\k*0.4-0.18) {$-$};}
+    \foreach \k in {0,...,4}{\fill[igreen] (0,-3.2-\k*0.4) rectangle (0.5,-3.2-\k*0.4-0.36); \node[font=\sffamily\scriptsize,text=white] at (0.25,-3.2-\k*0.4-0.18) {$+$};}
+    \node[lbl,align=left,anchor=west] at (0.7,-1.6) {$n_B$ negative};
+    \node[lbl,align=left,anchor=west] at (0.7,-4.2) {$m_B$ positive};
+  \end{scope}
+\end{tikzpicture}
+\caption[Quasi-definite KKT block structure]{Block structure of the regularised augmented
+(KKT) system solved at every QP interior-point iteration. The $(1,1)$ block is negative definite,
+because it contains the barrier term $D=Z X^{-1}+S W^{-1}$ and the regularisation $\rho I$, and the
+$(2,2)$ block is positive definite. Any symmetric permutation therefore factorises as $LDL\T$ with
+the pivot signs shown on the right, and the ordering can be chosen for sparsity alone.}
+\label{fig:kkt}
+\end{figure}

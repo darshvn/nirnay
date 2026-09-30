@@ -1,0 +1,153 @@
+% Section 11: numerical safeguards: what went wrong and how each fix works.
+\section{Numerical safeguards: what went wrong and what fixed it}\label{sec:safeguards}
+
+Most of the effort in a simplex or interior-point code goes into its failure modes, not into the
+textbook iteration. This section collects the failures we met on the benchmark sets and explains
+the mechanism of each fix. The first sweeps (\file{netlib\_simplex\_v1.csv}, \file{netlib\_ipm\_v1.csv})
+record the state before the fixes. \Cref{tab:fixes-spx,tab:fixes-ipm} list every problem whose result
+changed between versions.
+
+\subsection{Dual simplex}\label{sec:simplex-safeguards}
+
+\begin{table}[tbp]
+\centering\small
+\caption[Dual simplex: problems changed by the fixes]{Dual simplex, v1 against v2: every Netlib
+problem not solved by both versions. v1 solved \nFixedSpxVOne{} of \nFixedSpxVOneTot{}; the fixes of
+\cref{sec:simplex-safeguards} solved \nFixedSpx{} more. On the problems both versions finish, v2 is
+\nFixedSpxSpeedup{} times faster in shifted geometric mean, measured relative to HiGHS in each sweep.}
+\label{tab:fixes-spx}
+\begin{tabular}{@{}l lrr lrr@{}}
+\toprule
+ & \multicolumn{3}{c}{v1} & \multicolumn{3}{c}{v2}\\
+\cmidrule(lr){2-4}\cmidrule(l){5-7}
+Problem & status & rel.\ err & time (s) & status & rel.\ err & time (s)\\
+\midrule
+\rows{data/fixes_simplex.tex}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{False ``infeasible'' from the ratio test (\code{perold}, \code{pilotnov})}
+The v1 sweep declared two feasible problems infeasible within a second. A dual simplex concludes
+primal infeasibility when the ratio test finds no entering candidate: the dual is unbounded along the
+pivot row, which is a Farkas certificate. That conclusion is only as good as the reduced costs and the
+pivot row it rests on. The v1 ratio test did not use the textbook Harris bound. A Harris pass must
+bound the step by the \emph{smallest relaxed} ratio $\min_j(|d_j|+\epsilon_d)/|\alpha_{rj}|$ over the
+candidates that remain after the bound flips. Only then does a step to any candidate with $t_j\le\Theta$
+leave every reduced cost within $\epsilon_d$ of its feasible sign. A step past that bound makes some
+$d_j$ infeasible by more than the tolerance. Later ratio tests then exclude that $j$ or treat it
+wrongly, and an empty candidate set, and so a false certificate, follows. The fixed kernel
+(\cref{alg:ratio}) computes the bound exactly as above. It also makes the pivot tolerance
+\emph{relative} to the largest $|\alpha_{rj}|$ in the row, because the \code{pilot} models have rows
+whose entries span many orders of magnitude, where an absolute $10^{-7}$ admits pivots that are noise.
+Two further guards keep a certificate honest. First, before reporting infeasibility the code
+refactorises, recomputes $x_{\mathcal B},y,d$ from scratch, repairs the dual feasibility, and repeats the
+iteration; only a second empty ratio test on a fresh factorisation counts. Second, the pivot seen
+from the row ($\alpha_{rq}$) and from the column ($\alpha_{q,r}$) must agree to $10^{-6}$ relative, or
+the factorisation is renewed.
+
+The source of v1 is not in the repository: the first commit already contains the fixed kernel. This
+account is therefore of the fixed code and of the failure recorded in the v1 sweep.
+
+\paragraph{Stalling and cycling in phase 1 (\code{cycle}, \code{pilot87}, \code{tuff})}
+Three problems ran into the \tlNetlib\,s limit in v1. Degenerate problems give many zero
+reduced costs, so many ratio-test breakpoints tie at zero, and the dual simplex can pivot through a
+sequence of degenerate bases without improving the dual objective, possibly returning to a basis
+already visited. v1 perturbed the costs in phase~2 only, while phase~1 on Fourer's auxiliary problem
+\eqref{eq:aux} is at least as degenerate: every bound there is $0$ or $\pm1$. The fix applies the
+random perturbation \eqref{eq:perturb} in phase~1 as well, which breaks the ties. \code{cycle}
+went from a time-out to under a second (\cref{tab:fixes-spx}).
+
+\paragraph{Wrong objective on \code{pilot}: the dual tolerance of the cleanup}
+v1 returned \code{optimal} on \code{pilot} with a relative objective error far above $10^{-6}$
+(\cref{tab:fixes-spx}). The cause is the size of the variable ranges. After the perturbation is removed, reduced costs with the
+wrong sign but below the dual tolerance $\epsilon_d=10^{-7}$ are accepted as optimal. The objective
+error they leave is bounded by
+\begin{equation}\label{eq:dualerr}
+  |f(x)-f^\star| \;\lesssim\; \sum_{j\in\mathcal N} |d_j^{\text{infeas}}|\,(u_j-\ell_j),
+\end{equation}
+and on \code{pilot} a reduced cost of $10^{-8}$ on a variable with a scaled range of $10^3$ already
+shifts the objective by $10^{-5}$. The fix polishes with the primal simplex to $\epsilon_d=10^{-9}$ in
+the cleanup phase only (phase~1 and phase~2 keep $10^{-7}$, which is enough to steer the search).
+v2 solves \code{pilot} to the reference objective (\cref{tab:fixes-spx}).
+
+\paragraph{Singular bases}
+Basis repair (\cref{sec:lu}) replaces a dependent basic column by a logical instead of failing; the
+number of repairs is reported with each result. Refactorisation every 100 updates, or when the eta
+file grows beyond eight times the LU size, bounds the growth of rounding error in the product form.
+
+\paragraph{Exact duals at return}
+The iteration updates $d$ incrementally and $y$ only at refactorisation, and cost shifts change $c$
+during the loop. The returned $y$ is therefore recomputed as $B\mT c_{\mathcal B}$ for the true costs.
+This matters for postsolve (\cref{sec:presolve-bug}) and for anyone who uses the duals as prices, as
+refinery planners do.
+
+\subsection{Interior-point method}
+
+\begin{table}[tbp]
+\centering\small
+\caption[Interior point: problems changed by the fixes]{Interior point, v1 against v2: every Netlib
+problem not solved by both versions. v1 solved \nFixedIpmVOne{} of \nFixedIpmVOneTot{}; v2 solves
+\nFixedIpm{} more. On problems both versions finish, v2 is \nFixedIpmSpeedup{} times faster in shifted
+geometric mean, measured relative to HiGHS in each sweep.}
+\label{tab:fixes-ipm}
+\begin{tabular}{@{}l lrr lrr@{}}
+\toprule
+ & \multicolumn{3}{c}{v1} & \multicolumn{3}{c}{v2}\\
+\cmidrule(lr){2-4}\cmidrule(l){5-7}
+Problem & status & rel.\ err & time (s) & status & rel.\ err & time (s)\\
+\midrule
+\rows{data/fixes_ipm.tex}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Stall detection}
+In v1 several problems (\code{degen3}, \code{greenbeb}, \code{pilot}, \code{pilot87}, \code{dfl001})
+ran to the iteration limit, some of them with objectives already correct to $10^{-8}$. Near the
+solution $\Theta$ spans many orders of magnitude and the normal equations lose the digits
+needed to reach $10^{-8}$. Further iterations only drive $\mu$ towards zero and $z_j/x_j$ towards
+overflow. The v2 rule of \cref{sec:ipm} detects this. When the error has not halved in four iterations
+(or $\mu$ has collapsed), a point that meets $10^{-6}$ is accepted, and after 30 such iterations the
+method gives up with \code{numerical\_error} instead of wandering. Residuals are measured as relative
+$\infty$-norms \eqref{eq:ipm-term}, the convention of HiGHS/IPX, so the tolerance means the same on
+every problem. The remaining failures (\ipmFailNames) are the problems where even $10^{-6}$ is out of
+reach of the normal equations without presolve and crossover (\cref{sec:results}).
+
+\paragraph{Cholesky pivot guard}
+Dependent rows make $M$ singular at the limit. A pivot $\le10^{-30}$ is replaced by $10^{128}$
+(\cref{sec:chol}), which zeroes that component of $\Delta y$ instead of producing \code{inf}. The dual
+regularisation $\delta=10^{-10}$ and the two refinement steps keep the resulting error small. The
+numerical errors on \code{grow15} and \code{grow22} in v1 no longer occur.
+
+\subsection{QP interior point: the \texorpdfstring{$LDL\T$}{LDLT} pivot floor}
+The augmented matrix is quasi-definite only in exact arithmetic with $\rho,\delta>0$. When $D$
+spans many orders of magnitude, cancellation can still produce a pivot of the wrong sign or of
+magnitude $10^{-20}$, and dividing by it destroys the factorisation. The kernel replaces any pivot with
+$\sigma_kD_{kk}<\delta_{\min}$ by $\sigma_k\delta_{\min}$ (\cref{sec:ldl}), so the inertia is always
+right. Without the floor a single bad pivot produces \code{nan} in the direction and ends the solve.
+Refinement against the true matrix recovers the accuracy \eqref{eq:refine}. The floor alone is not
+enough, though. Flooring many pivots changes the matrix so much that the direction can be finite and
+still wrong (\code{QRECIPE}). The method therefore also checks the refined residual of every direction,
+and if the check fails it boosts the regularisation by $10^2$ and refactorises (\cref{sec:qp}).
+
+\subsection{Branch-and-bound: heap tie-breaking}\label{sec:heap}
+When the objective is integral, node bounds are rounded up, so many open nodes share exactly the
+same key. A heap keyed by $(\underline z,\text{counter})$ breaks those ties by insertion order: it
+takes the \emph{oldest}, hence shallowest, node among equals. The search then proceeds breadth-first
+across a level of equal bounds, the open list grows, and incumbents that a deeper node would give
+arrive late. Adding $-\text{depth}$ as the second key \eqref{eq:heapkey} makes ties go to the deepest
+node. This changes nothing about which bound is processed next, so the best-bound guarantee is
+unchanged. It only makes the search finish subtrees it has already started.
+
+\subsection{Presolve: dual postsolve order}
+See \cref{sec:presolve-bug}: singleton-row duals depended on the order in which reductions were
+undone, and recording the column's cost and live rows at removal time fixed it.
+
+\begin{lessonbox}[What these failures have in common]
+The worst of these bugs produced confident wrong answers (``infeasible'', ``optimal'' with the wrong
+objective, duals with the wrong sign) rather than crashes or error messages. Each was found because the benchmark
+harness checks every result against an independent solver in a separate process, and because the dual
+check tests the optimality conditions on the original model. \Cref{sec:verification} describes these
+checks.
+\end{lessonbox}

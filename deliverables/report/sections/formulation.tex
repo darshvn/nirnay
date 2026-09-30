@@ -1,0 +1,101 @@
+% Section 2: mathematical formulations.
+\section{Mathematical formulations}\label{sec:formulation}
+
+\subsection{The model every engine reads}
+All engines read one problem form (\file{nirnay/model.py}):
+\begin{equation}\label{eq:model}
+\begin{aligned}
+  \min_{x\in\R^n}\quad & c\T x + \tfrac12 x\T Q x + c_0\\
+  \text{s.t.}\quad & r^{l} \le A x \le r^{u},\\
+  & \ell \le x \le u,\\
+  & x_j\in\Z \quad (j\in\mathcal{I}),
+\end{aligned}
+\end{equation}
+with $A\in\R^{m\times n}$ sparse, $Q\in\R^{n\times n}$ symmetric positive semidefinite (absent for
+LP and MILP), and bounds that may be infinite. A row with $r^l_i=r^u_i$ is an equality, a row with
+both bounds finite and different is a ranged row, and a row with neither bound is free. A
+maximisation is stored negated with a flag \code{sense}$=-1$, so every engine minimises and the
+reported objective and duals come back in the sense of the file. The problem is an LP when
+$Q=0$ and $\mathcal{I}=\emptyset$, a MILP when $\mathcal{I}\ne\emptyset$, and a QP when $Q\ne0$.
+
+$A$ is held in compressed sparse column (CSC) form: \code{colptr} (length $n+1$), \code{rowidx}
+and \code{vals} (length $\nnz(A)$). The simplex, the LU factorisation and presolve all traverse
+columns. Row access, which propagation and the pivot row need, uses $A\T$ in CSC form (that is,
+$A$ in CSR form), built once and cached. The arrays are plain NumPy arrays so that Numba kernels
+can take them directly.
+
+\subsection{Duality and optimality conditions}
+For the LP case ($Q=0$) of \eqref{eq:model}, let $y\in\R^m$ be the row duals and
+$z = c - A\T y$ the reduced costs. A primal feasible $x$ is optimal if and only if there is a $y$
+with
+\begin{equation}\label{eq:kkt-lp}
+\begin{aligned}
+  y_i > 0 &\Rightarrow a_i\T x = r^l_i, & y_i < 0 &\Rightarrow a_i\T x = r^u_i,\\
+  z_j > 0 &\Rightarrow x_j = \ell_j,    & z_j < 0 &\Rightarrow x_j = u_j .
+\end{aligned}
+\end{equation}
+The dual objective is
+\begin{equation}\label{eq:dualobj}
+  \phi(y) = \sum_i \bigl( r^l_i\, y_i^+ - r^u_i\, y_i^- \bigr)
+          + \sum_j \bigl( \ell_j\, z_j^+ - u_j\, z_j^- \bigr) + c_0,
+  \qquad t^+=\max(t,0),\; t^-=\max(-t,0),
+\end{equation}
+and weak duality $c\T x + c_0 \ge \phi(y)$ holds for every primal feasible $x$ and every $y$ for
+which \eqref{eq:dualobj} is finite. \Cref{sec:verification} tests \eqref{eq:kkt-lp} on the
+solutions \nirnay{} returns, after postsolve and in the original, unscaled variables.
+
+For QP the reduced cost becomes $z = c + Qx - A\T y$ and the dual objective gains the term
+$-\tfrac12 x\T Q x$.
+
+\subsection{Computational forms}
+Each engine converts \eqref{eq:model} into the form its algebra needs. Each conversion is exact,
+and each engine maps its solution back itself.
+
+\paragraph{Simplex: logicals for every row}
+The dual simplex (\cref{sec:simplex}) gives every row a logical variable $s_i = a_i\T x$:
+\begin{equation}\label{eq:simplex-form}
+  \min\; c\T x \quad \text{s.t.}\quad A x - s = 0,\qquad \ell\le x\le u,\qquad r^l\le s\le r^u .
+\end{equation}
+There are $n+m$ variables and every constraint is an equality with right-hand side zero. The
+constraint matrix is $[A\;\; {-I}]$, so the all-logical basis $B=-I$ is always available and
+needs no factorisation. Each variable has one of five statuses: basic, at its lower bound, at its
+upper bound, nonbasic free at zero, or fixed.
+
+\paragraph{Interior point: bounded standard form}
+The IPM (\cref{sec:ipm}) keeps equality rows as they are. It gives every inequality row a slack
+column ($a_i\T x - s_i = 0$, $r^l_i\le s_i\le r^u_i$), drops free rows, and substitutes fixed
+columns into the right-hand side. It then shifts every variable, and reflects the ones with only
+an upper bound, so that each variable is free, nonnegative, or in a box $[0,U_j]$:
+\begin{equation}\label{eq:ipm-form}
+  \min\; c\T x\quad\text{s.t.}\quad Bx = b,\qquad x_j\ge0\ (j\in\mathcal{L}),\qquad
+  x_j + w_j = U_j,\ w_j\ge0\ (j\in\mathcal{U}),
+\end{equation}
+where $\mathcal{U}\subseteq\mathcal{L}$ are the boxed variables and the rest are free. This is the
+bounded standard form of Lustig, Marsten and Shanno~\cite{lustig1994}. The dual has $y$ for the
+rows, $z\ge0$ on $x_{\mathcal{L}}\ge0$ and $s\ge0$ on $w\ge0$, and the optimality conditions are
+\begin{equation}\label{eq:ipm-kkt}
+  Bx=b,\quad x_{\mathcal U}+w=U,\quad B\T y + z - s = c,\quad
+  x_j z_j = 0\ (j\in\mathcal L),\quad w_j s_j = 0\ (j\in\mathcal U).
+\end{equation}
+
+\paragraph{PDLP: the saddle point on the original rows}
+PDLP (\cref{sec:pdlp}) uses the original rows and bounds, with no slack columns, and solves the
+saddle-point problem
+\begin{equation}\label{eq:saddle}
+  \min_{x\in X}\;\max_{y\in Y}\; \mathcal{L}(x,y)= c\T x - y\T A x + p(y),\qquad
+  p(y) = (r^l)\T y^+ - (r^u)\T y^-,
+\end{equation}
+where $X=\{\ell\le x\le u\}$ is the box and $Y$ is the sign cone of the rows: $y_i\ge0$ when
+$r^u_i=+\infty$, $y_i\le0$ when $r^l_i=-\infty$, and $y_i=0$ on a free row.
+
+\paragraph{QP: the augmented system}
+The QP method (\cref{sec:qp}) uses the same bounded standard form \eqref{eq:ipm-form} with the
+objective $c\T x+\frac12 x\T Qx$. $Q$ is carried through the shift and the reflection:
+$x_{\text{model}} = x^0 + E\,\sigma\circ x'$ adds $Qx^0$ to $c$ and $\frac12 (x^0)\T Q x^0$ to
+$c_0$, and $Q$ is conjugated by the signs~$\sigma$.
+
+\paragraph{MILP}
+A MILP node is the LP relaxation \eqref{eq:simplex-form} with tightened bounds on the integer
+columns. Apart from the cutting planes added at the root, branch-and-bound therefore never changes
+the matrix. It changes bounds, and the dual
+simplex re-optimises from the parent's basis (\cref{sec:mip}).

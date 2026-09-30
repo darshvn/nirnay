@@ -1,0 +1,166 @@
+% Section 9: branch-and-bound for MILP.
+\section{Branch-and-bound for mixed-integer programmes}\label{sec:mip}
+
+Every node of the search is the LP relaxation \eqref{eq:simplex-form} with some integer bounds
+tightened. A branching change leaves the parent's optimal basis dual feasible, so the dual simplex
+re-optimises a child in a few pivots. This is why MILP codes are built on the dual simplex, and
+\file{mip/bnb.py} is built on the warm-started \code{SimplexLP} of \cref{sec:simplex}. Its components
+follow Achterberg's thesis~\cite{achterberg2007} and the branching study of Achterberg, Koch and
+Martin~\cite{achterberg2005}.
+
+\subsection{The search}
+\paragraph{Node selection: best bound with plunging}
+Open nodes wait in a binary heap keyed by
+\begin{equation}\label{eq:heapkey}
+  \bigl(\ \underline{z}_{\text{parent}},\ -\text{depth},\ \text{counter}\ \bigr),
+\end{equation}
+so the node with the smallest bound comes first, and among equal bounds the \emph{deepest}
+(\cref{sec:heap}). After a node is branched on, the child that the fractional part favours ($x_j$
+rounded up if $f_j\ge0.5$, else down) is solved at once, and the other goes to the heap. The search
+keeps diving into the solved child while its bound stays within $10\%$ of the distance between the
+best open bound and the cutoff:
+\begin{equation}\label{eq:plunge}
+  \underline z_{\text{child}} \le \underline z_{\text{open}} + 0.1\,\bigl|z_{\text{cutoff}}-\underline z_{\text{open}}\bigr| .
+\end{equation}
+Before an incumbent exists the right-hand side is infinite, so the search dives depth-first, which
+finds incumbents early. Once one exists it returns to best-first search, which proves the bound.
+A child that fails \eqref{eq:plunge} is queued with its own LP bound and basis.
+
+\paragraph{Pruning and bound rounding}
+A node is pruned when its LP is infeasible or its rounded bound reaches the cutoff
+\begin{equation}\label{eq:cutoff}
+  z_{\text{cutoff}} = \begin{cases} z_{\text{inc}} - 1 + 10^{-6} & \text{if the objective is integral on integer points},\\
+  z_{\text{inc}} - \max(10^{-9}, 10^{-9}|z_{\text{inc}}|) & \text{otherwise.}\end{cases}
+\end{equation}
+The objective is integral when every continuous column has zero cost and all costs and $c_0$ are
+integers. Node bounds are then rounded up, $\lceil \underline z - 10^{-6}\rceil$, which often closes
+the last unit of gap without enumeration. The search stops when the relative gap
+$(z_{\text{inc}}-\underline z)/\max(1,|z_{\text{inc}}|)$ is at most $10^{-4}$, the default of HiGHS
+and SCIP.
+
+\begin{figure}[tbp]
+\centering
+\begin{forest}
+  for tree={
+    draw=navy, rounded corners=2pt, align=center, font=\sffamily\scriptsize,
+    inner sep=2pt, minimum width=11mm, l sep=7mm, s sep=9mm, edge={->,draw=ink,line width=0.5pt},
+    fill=white,
+  }
+  [{root\\$\underline z{=}100.3$},fill=navy!12
+    [{$x_3\le2$\\$100.6$},edge label={node[midway,left,lbl]{\#1 plunge}},fill=saffron!18,draw=saffron
+      [{$x_7\le0$\\$100.8$},edge label={node[midway,left,lbl]{\#2}},fill=saffron!18,draw=saffron
+        [{$x_1\le4$\\infeasible},fill=card,draw=muted,edge label={node[midway,left,lbl]{\#3}}]
+        [{$x_1\ge5$\\$102$ integral},fill=igreen!12,draw=igreen,edge label={node[midway,right,lbl]{\#4}}]
+      ]
+      [{$x_7\ge1$\\$100.9$},fill=sky!12,draw=sky,edge label={node[midway,right,lbl]{\#5 from heap}}
+        [{$x_2\le1$\\\textbf{101} integral},fill=igreen!25,draw=igreen,edge label={node[midway,left,lbl]{\#6}}]
+        [{$x_2\ge2$\\not solved},fill=card,draw=muted,edge label={node[midway,right,lbl]{pruned}}]
+      ]
+    ]
+    [{$x_3\ge3$\\not solved},fill=card,draw=muted,edge label={node[midway,right,lbl]{pruned}}]
+  ]
+\end{forest}
+\caption[Branch-and-bound tree]{An illustrative branch-and-bound tree (made-up numbers, integral
+objective). Orange: the plunge, which dives into the favoured child after each branching and finds
+the incumbent 102 at node~\#4. The cutoff is then $102-1+10^{-6}$. The open nodes $x_7\ge1$ and
+$x_3\ge3$ both have the rounded key $\lceil100.6\rceil=\lceil100.3\rceil=101$; the depth tie-break
+of \eqref{eq:heapkey} pops the deeper one (\#5), whose child \#6 is the optimum 101. The new cutoff
+$100+10^{-6}$ prunes the two remaining nodes without solving their LPs, and the root bound
+$\lceil100.3\rceil=101$ closes the gap.}
+\label{fig:bnb}
+\end{figure}
+
+\paragraph{Branching: pseudocosts with reliability}
+The candidate score is the product rule
+\begin{equation}\label{eq:score}
+  \text{score}_j = \max\bigl(\psi^-_j f_j,\ 10^{-6}\bigr)\cdot\max\bigl(\psi^+_j(1-f_j),\ 10^{-6}\bigr),
+\end{equation}
+where $f_j$ is the fractional part of $x_j$ and $\psi^\pm_j$ are the pseudocosts: the average gain in
+the LP objective per unit of change, recorded from every solved child. Unobserved directions use the
+average over all columns. A candidate is \emph{unreliable} while it has fewer than 4 observations in
+either direction. Up to 8 of the best-scored unreliable candidates are then strong-branched, both
+children solved by the dual simplex for at most 60 iterations from the current basis, which also
+records pseudocosts~\cite{achterberg2005}. If both children are infeasible the node is pruned. If one
+is, the candidate gets a top score, because branching on it fixes a variable. An integral child LP
+found during strong branching is offered as an incumbent.
+
+\subsection{Domain propagation}\label{sec:propagation}
+At every node the bounds are propagated over the rows~\cite{savelsbergh1994,achterberg2007}
+(\file{mip/propagate.py}). For a row $r^l\le\sum_j a_jx_j\le r^u$, the minimum and maximum activities
+of the row without $x_j$ imply
+\begin{equation}\label{eq:propagate}
+  a_j>0:\quad x_j\le \frac{r^u-\underline{\text{act}}_{-j}}{a_j},\qquad x_j\ge\frac{r^l-\overline{\text{act}}_{-j}}{a_j},
+\end{equation}
+with the inequalities reversed for $a_j<0$. Infinite contributions are counted, so a row with exactly
+one infinite contributor can still bound that one variable. Integer bounds are rounded inward
+($\lfloor u+10^{-6}\rfloor$, $\lceil \ell-10^{-6}\rceil$). A continuous bound is accepted only if it
+improves by more than $10^{-3}\max(1,|\text{bound}|)$, so round-off cannot creep into the bounds.
+An empty domain, or an activity range that misses the row, proves the node infeasible. Up to 5 passes
+run per node. Bounds found for continuous columns guide the search but are not sent to the LP.
+
+\subsection{Primal heuristics}
+\begin{itemize}
+  \item \textbf{Simple rounding} at every node: round all integer columns of the LP solution and
+        accept the point if it is feasible.
+  \item \textbf{Fix-and-solve} at the root and every 100 nodes: fix every integer to its rounded
+        LP value, propagate, and re-solve the LP for the continuous columns (at most 5\,000
+        dual iterations).
+  \item \textbf{Fractional diving}~\cite{berthold2006} at the root when no incumbent exists, and every
+        50 nodes while none does: repeatedly fix the least fractional integer to its nearest value,
+        propagate and re-solve, until the LP is integral, infeasible or worse than the cutoff. The
+        LP budget is $\max(1000,\ 2\times$ the LP iterations spent so far$)$.
+\end{itemize}
+
+\subsection{Gomory mixed-integer cuts}\label{sec:gmi}
+At the root, up to 20 rounds of Gomory mixed-integer (GMI) cuts~\cite{gomory1960,balas1996} tighten
+the relaxation (\file{mip/cuts.py}). Take an optimal tableau row whose basic variable is an integer
+column with fractional value. Write each nonbasic variable as its distance from the bound it sits
+at, $t_k\ge0$, so that $x_B + \sum_k a_k t_k = b$ with $f_0=\fr(b)\in(0,1)$. Every integer-feasible
+point then satisfies
+\begin{equation}\label{eq:gmi}
+  \sum_{\substack{k\ \text{int}\\ f_k\le f_0}}\frac{f_k}{f_0}t_k
+  +\sum_{\substack{k\ \text{int}\\ f_k> f_0}}\frac{1-f_k}{1-f_0}t_k
+  +\sum_{\substack{k\ \text{cont}\\ a_k>0}}\frac{a_k}{f_0}t_k
+  +\sum_{\substack{k\ \text{cont}\\ a_k<0}}\frac{-a_k}{1-f_0}t_k \;\ge\; 1,
+  \qquad f_k=\fr(a_k).
+\end{equation}
+The LP point has $t=0$ and violates the cut by exactly~1. A nonbasic variable counts as integer when its
+column is integer and its bound is integral. Logical variables are expanded into the structural
+columns of their row, and the cut is mapped back to the unscaled $x$ space.
+
+\paragraph{Numerical safeguards}
+Following the practice of Cook, Dash, Fukasawa and Goycoolea~\cite{cook2009}, a cut is generated only
+from a row with $0.01<f_0<0.99$. It is skipped when a free nonbasic variable appears in the row or a
+needed bound is infinite. Coefficients below $10^{-9}$ of the largest are removed by relaxing against
+the variable's bound, which keeps the cut valid. The cut is rejected if its coefficient ratio exceeds
+$10^6$ or its efficacy (violation divided by $\|g\|_2$) is below $10^{-5}$, and the survivors are
+scaled so that the largest coefficient is~1. A regression test checks that every cut generated on
+\code{p0033} keeps the known optimal integer point feasible.
+
+\paragraph{The cut loop}
+Each round adds up to $\max(20,\min(200,m/2))$ cuts, most fractional rows first, and re-solves the LP.
+The loop stops when the LP is integral, no cut is found, three rounds together move the bound by less
+than $0.1\%$, or the cuts have grown the model beyond $4m+1000$ rows. Cuts that are slack at the final
+root point are then dropped, because they would only slow down the node LPs.
+
+\begin{algorithm}[t]
+\caption{Branch-and-bound with plunging (\file{mip/bnb.py}, simplified)}\label{alg:bnb}
+\Input{MILP, gap tolerance $10^{-4}$, time limit}
+propagate at the root; solve the root LP; GMI cut rounds; rounding, fix-and-solve, diving\;
+$\text{current}\leftarrow$ root (LP solved); heap $\leftarrow\emptyset$\;
+\While{time remains}{
+  \If{$\text{current}=\emptyset$}{
+    pop nodes whose bound $\ge z_{\text{cutoff}}$; \lIf{heap empty}{\textbf{break}}
+    pop node with the smallest $(\underline z,-\text{depth})$; propagate; warm-start the dual simplex from its stored basis\;
+    record the pseudocost of the branching that created it\;
+  }
+  \lIf{LP infeasible or $\lceil\underline z\rceil\ge z_{\text{cutoff}}$}{\textbf{continue}}
+  \lIf{LP solution integral}{update incumbent; \textbf{continue}}
+  simple rounding; periodic diving and fix-and-solve\;
+  choose $j$ by reliability branching \eqref{eq:score}\;
+  create children $x_j\le\lfloor x_j\rfloor$ and $x_j\ge\lceil x_j\rceil$ with the parent's basis\;
+  push the less favoured child; solve the favoured one\;
+  \leIf{its bound satisfies \eqref{eq:plunge}}{$\text{current}\leftarrow$ that child}{push it; $\text{current}\leftarrow\emptyset$}
+  \lIf{relative gap $\le10^{-4}$}{\textbf{break}}
+}
+\end{algorithm}

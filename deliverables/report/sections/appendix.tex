@@ -1,0 +1,132 @@
+% Appendices: full result tables, typesetting toolchain, reproduction.
+\section{Full benchmark tables}\label{app:tables}
+
+$^\dagger$ marks a result that does not count as solved under the criteria of \cref{sec:verification}.
+Times are in seconds, and ``rel.\ err'' is the relative objective error \eqref{eq:relerr}.
+
+{\small
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}l rrr r rr rr rr@{}}
+\caption[Netlib: every problem, all three LP engines]{Netlib: every problem, with the dual simplex
+(\file{\spxFile}), the interior point (\file{\ipmFile}) and PDLP at $10^{-4}$ (\file{\pdlpFile}; for
+PDLP $^\dagger$ marks an objective error of $10^{-3}$ or more).}\label{tab:netlib-full}\\
+\toprule
+ & & & & HiGHS & \multicolumn{2}{c}{dual simplex} & \multicolumn{2}{c}{interior point} & \multicolumn{2}{c}{PDLP}\\
+\cmidrule(lr){6-7}\cmidrule(lr){8-9}\cmidrule(l){10-11}
+Problem & $m$ & $n$ & nnz & time & time & rel.\ err & time & rel.\ err & time & rel.\ err\\
+\midrule
+\endfirsthead
+\toprule
+Problem & $m$ & $n$ & nnz & HiGHS & time & rel.\ err & time & rel.\ err & time & rel.\ err\\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\rows{data/netlib_full.tex}
+\end{longtable}
+}
+
+{\small
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}l rrr l r r r rr l@{}}
+\caption[MIPLIB 3: every instance run]{MIPLIB~3: every instance run so far (\file{\mipFile},
+\tlMip\,s limit). ``ref'' is HiGHS's outcome under the same limit (opt: proved optimal; TL: time
+limit).}\label{tab:miplib-full}\\
+\toprule
+Instance & $m$ & $n$ & int & status & gap & rel.\ err & nodes & time & HiGHS & ref\\
+\midrule
+\endfirsthead
+\toprule
+Instance & $m$ & $n$ & int & status & gap & rel.\ err & nodes & time & HiGHS & ref\\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\rows{data/miplib_full.tex}
+\end{longtable}
+}
+
+{\small
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}l rrr l l r r rr@{}}
+\caption[Maros--Mészáros: every problem]{Maros--Mészáros convex QPs: every problem (\file{\qpFile}).
+``Clarabel'' is the reference's own status; $^{\S}$: the MPS parsers disagree on this file and the
+reference solves \nirnay{}'s reading (\cref{sec:verification}).}\label{tab:maros-full}\\
+\toprule
+Problem & $m$ & $n$ & nnz & status & Clarabel & rel.\ err & iters & time & ref.\ time\\
+\midrule
+\endfirsthead
+\toprule
+Problem & $m$ & $n$ & nnz & status & Clarabel & rel.\ err & iters & time & ref.\ time\\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\rows{data/maros_full.tex}
+\end{longtable}
+}
+
+\section{Typesetting toolchain}\label{app:toolchain}
+The report is built with pdf\LaTeX{} from TeX Live 2023 by \code{latexmk}. Every figure is drawn in
+TikZ or PGFPlots from source, with no raster images, and every plot and generated table reads files
+that \file{gen\_data.py} writes from \file{results/*.csv}. The packages were chosen after checking their
+CTAN pages for maintenance status and licence, and for how widely they are used on
+TeX~StackExchange, where \code{tikz-pgf} and \code{pgfplots} are among the most-used tags.
+
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}l X@{}}
+\toprule
+Package & Why it was chosen\\
+\midrule
+TikZ/PGF 3.1 & The standard native drawing system for \LaTeX{} (actively maintained, LPPL/GPL). Used
+  with the libraries \code{positioning}, \code{arrows.meta}, \code{shapes.geometric},
+  \code{shapes.misc}, \code{fit}, \code{calc}, \code{backgrounds}, \code{matrix} and
+  \code{decorations.pathreplacing} for the architecture, data-flow, flowchart, KKT and fill-in
+  figures. \url{https://ctan.org/pkg/pgf}\\
+PGFPlots 1.18 & Plots computed by \TeX{} from data files, in the document's fonts; log axes,
+  \code{groupplots} for the scatter panel, \code{const plot} for profiles and ECDFs.
+  \url{https://ctan.org/pkg/pgfplots}\\
+pgfplotstable & Reads CSV/whitespace tables directly (tick labels read from the \code{.dat}
+  files). \url{https://ctan.org/pkg/pgfplotstable}\\
+forest & Trees from a bracket notation with automatic, compact packing; used for the
+  branch-and-bound tree. \url{https://ctan.org/pkg/forest}\\
+algorithm2e & Floating pseudocode with numbered lines and block rules, referenced with
+  \code{cleveref}. It was preferred to \code{algorithmicx}, whose CTAN entry lists its maintainer as
+  inactive. \url{https://ctan.org/pkg/algorithm2e}\\
+booktabs, longtable, tabularx & Professional table rules; multi-page appendix tables.
+  \url{https://ctan.org/pkg/booktabs}\\
+siunitx & Consistent typesetting of the generated numbers (\code{\textbackslash num\{1.7e-16\}}).
+  \url{https://ctan.org/pkg/siunitx}\\
+tcolorbox & The summary, lesson and ``honest'' boxes. \url{https://ctan.org/pkg/tcolorbox}\\
+listings & Code listings. \url{https://ctan.org/pkg/listings}\\
+hyperref, cleveref & Links and automatic reference names (``Figure'', ``Algorithm'').
+  \url{https://ctan.org/pkg/cleveref}\\
+microtype & Character protrusion and font expansion for even text colour.
+  \url{https://ctan.org/pkg/microtype}\\
+natbib + \code{plainnat} & Numbered citations with DOIs. \code{biblatex}/\code{biber} would be the
+  modern choice, but the TeX Live installation on the build machine does not include
+  \code{biblatex}, and natbib builds everywhere. \url{https://ctan.org/pkg/natbib}\\
+libertinus, Source Sans/Code Pro & Open fonts with matching mathematics (Libertinus) and a
+  sans-serif for headings and figures. \url{https://ctan.org/pkg/libertinus}\\
+\bottomrule
+\end{tabularx}
+\end{center}
+\code{tikz-cd} was considered and not used: none of the diagrams is a commutative diagram.
+
+\section{Reproducing this report}\label{app:repro}
+\begin{lstlisting}[language=bash]
+# benchmark sweeps (each writes results/<suite>.csv)
+python bench/run_lp.py  data/netlib --method simplex --limit 300 --out results/netlib_simplex_v3.csv
+python bench/run_lp.py  data/netlib --method ipm     --limit 300 --out results/netlib_ipm_v2.csv
+python bench/run_mip.py data/miplib --limit 60 --out results/miplib3_bnb_v2.csv
+python bench/run_qp.py  data/qp/mm  --limit 120 --out results/maros_qpipm_v1.csv
+python bench/run_pdlp_gpu.py data/large --tol 1e-4 --limit 300 --out results/large_pdlp_gpu.csv
+python tools/dual_check.py data/netlib/*.mps.gz > deliverables/report/data/dual_check.txt
+
+# data for the report (picks the newest version of every sweep), then the PDF
+cd deliverables/report
+python gen_data.py
+latexmk -pdf -interaction=nonstopmode main.tex
+\end{lstlisting}
+\file{gen\_data.py} prefers the highest \code{\_v<k>} version of each sweep, so a new sweep appears in
+the report as soon as its file exists. It was last run on \genDate.

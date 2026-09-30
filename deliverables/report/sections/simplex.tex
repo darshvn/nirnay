@@ -1,0 +1,198 @@
+% Section 6: the bounded dual simplex.
+\section{The bounded dual simplex method}\label{sec:simplex}
+
+The dual simplex is \nirnay{}'s default LP engine and the node solver of branch-and-bound. Its
+design follows Koberstein's thesis~\cite{koberstein2005}: dual steepest-edge pricing
+\cite{forrest1992}, the bound-flipping ratio test \cite{maros2003} with Harris's two-pass
+tolerance \cite{harris1973}, Fourer's auxiliary problem for phase~1 \cite{fourer1994}, cost
+perturbation and shifting against degeneracy, and a primal simplex to clean up at the end
+(\file{lp/simplex.py}, with the per-iteration loops in \file{lp/\_simplex\_kernels.py}).
+
+\subsection{Basis, primal and dual values}
+In the computational form \eqref{eq:simplex-form} the constraint matrix is $\bar A=[A\;\;{-I}]$ over
+$n+m$ variables. A basis is an index set $\mathcal B$ of size $m$ with $B=\bar A_{:,\mathcal B}$
+nonsingular; every nonbasic variable sits at a bound (or at zero if free). Then
+\begin{equation}\label{eq:basic}
+  x_{\mathcal B} = -B^{-1}\bar A_{:,\mathcal N}\,x_{\mathcal N},\qquad
+  y = B\mT c_{\mathcal B},\qquad d = c - \bar A\T y\quad(d_{\mathcal B}=0).
+\end{equation}
+The basis is \emph{dual feasible} when every nonbasic reduced cost has the sign its bound allows
+($d_j\ge0$ at a lower bound, $d_j\le0$ at an upper bound, $d_j=0$ if free), and
+\emph{primal feasible} when $\ell_{\mathcal B}\le x_{\mathcal B}\le u_{\mathcal B}$. The dual
+simplex keeps dual feasibility and removes primal infeasibility one row at a time. Each iteration
+does not decrease the dual objective \eqref{eq:dualobj}.
+
+\subsection{One iteration}
+\paragraph{Pricing: dual steepest edge}
+Let $\delta_r$ be the primal infeasibility of basic variable $r$ ($\ell_r-x_r$ below, $x_r-u_r$
+above; only violations beyond the primal tolerance $10^{-7}$ count). The leaving row maximises
+\begin{equation}\label{eq:dse}
+  r = \arg\max_i \frac{\delta_i^2}{w_i},\qquad w_i \approx \bigl\|e_i\T B^{-1}\bigr\|_2^2 ,
+\end{equation}
+which measures the infeasibility per unit length of the dual edge~\cite{forrest1992}. The weights start
+at~1 for the slack basis.
+
+\paragraph{Pivot row}
+One BTRAN gives $\rho_r=B\mT e_r$. The pivot row $\alpha_r=\rho_r\T\bar A$ is then formed row-wise: the
+kernel walks only the rows of $A$ (columns of $A\T$) where $\rho_r$ is nonzero, so a sparse $\rho_r$
+costs little. Basic entries are set to zero.
+
+\paragraph{Ratio test}
+If $x_r$ leaves towards its lower bound, set $s=-1$; towards its upper bound, $s=+1$. A nonbasic $j$ is
+a candidate when $s\,\alpha_{rj}$ has the sign that lets $d_j$ move towards zero: $s\alpha_{rj}>\epsilon$
+at a lower bound, $s\alpha_{rj}<-\epsilon$ at an upper bound, $|\alpha_{rj}|>\epsilon$ if free. The
+pivot tolerance is \emph{relative}, $\epsilon=\max(10^{-7},\,10^{-9}\max_j|\alpha_{rj}|)$, so a
+badly scaled row cannot supply a pivot that is tiny next to its neighbours. Each candidate has a
+breakpoint $t_j=|d_j|/|\alpha_{rj}|$ (negative $d_j$ of the wrong sign is clipped to zero) and a
+relaxed breakpoint $\tilde t_j=(|d_j|+\epsilon_d)/|\alpha_{rj}|$ with dual tolerance
+$\epsilon_d=10^{-7}$. \Cref{alg:ratio} passes the breakpoints in increasing order, as
+Maros's bound-flipping ratio test does~\cite{maros2003}. The slope of the dual objective starts at
+$\delta_r$ and falls by $|\alpha_{rj}|(u_j-\ell_j)$ each time a boxed candidate is passed and flipped
+to its other bound. The pass stops before the slope would turn negative. Among the remaining
+candidates, Harris's two passes~\cite{harris1973} choose the entering~$q$: pass~1 takes the bound
+$\Theta=\min\tilde t_j$, and pass~2 takes, among the candidates with $t_j\le\Theta$, the one with the
+largest $|\alpha_{rj}|$. Stepping to any such candidate leaves every reduced cost within $\epsilon_d$
+of feasibility, and the large pivot keeps the basis well conditioned.
+
+\begin{algorithm}[t]
+\caption{Bound-flipping ratio test with Harris's two passes (\code{dual\_ratio\_test})}\label{alg:ratio}
+\Input{pivot row $\alpha_r$, reduced costs $d$, statuses, bounds, direction $s$, infeasibility $\delta$, tolerances $\epsilon_d,\epsilon_p$}
+\Output{entering column $q$ (or none), list $F$ of bound flips}
+$\epsilon\leftarrow\max(\epsilon_p,\ 10^{-9}\max_j|\alpha_{rj}|)$ \Comment*[r]{relative pivot tolerance}
+$\mathcal C\leftarrow$ candidates with $s\alpha_{rj}$ of the right sign and $|\alpha_{rj}|>\epsilon$\;
+\lIf{$\mathcal C=\emptyset$}{\Return none (the dual is unbounded along this row)}
+sort $\mathcal C$ by $t_j=|d_j|/|\alpha_{rj}|$;\quad $\text{slope}\leftarrow\delta$;\quad $F\leftarrow\emptyset$\;
+\For{$j\in\mathcal C$ in order, except the last}{
+  \lIf{$j$ is free or $u_j-\ell_j=\infty$ or $\text{slope}-|\alpha_{rj}|(u_j-\ell_j)\le0$}{\textbf{break}}
+  $F\leftarrow F\cup\{j\}$;\quad $\text{slope}\leftarrow\text{slope}-|\alpha_{rj}|(u_j-\ell_j)$\;
+}
+$\mathcal R\leftarrow$ the candidates not in $F$\;
+$\Theta\leftarrow\min_{j\in\mathcal R}(|d_j|+\epsilon_d)/|\alpha_{rj}|$ \Comment*[r]{Harris pass 1}
+$q\leftarrow\arg\max\{|\alpha_{rj}| : j\in\mathcal R,\ t_j\le\Theta\}$ \Comment*[r]{Harris pass 2}
+\Return $q$, $F$\;
+\end{algorithm}
+
+\paragraph{Updates}
+FTRAN gives the entering column $\alpha_q=B^{-1}\bar a_q$. Its entry $\alpha_{q,r}$ must agree with
+$\alpha_{rq}$ from the row: if $|\alpha_{q,r}-\alpha_{rq}|>10^{-6}(1+|\alpha_{q,r}|)$ or
+$|\alpha_{q,r}|<10^{-9}$, the factorisation has lost accuracy. The basis is then refactorised and the
+iteration repeated; if the factorisation was already fresh, row $r$ is skipped for now. Otherwise the
+flips move the basic variables once, $x_{\mathcal B}\leftarrow x_{\mathcal B}-B^{-1}\sum_{j\in F}\bar a_j\Delta x_j$, and
+\begin{equation}\label{eq:updates}
+\begin{aligned}
+  \theta_d &= d_q/\alpha_{rq}, & d_j &\leftarrow d_j-\theta_d\,\alpha_{rj}\ (j\in\mathcal N), & d_{\text{leave}}&=-\theta_d,\\
+  \theta_p &= (x_{\mathcal B_r}-\text{target})/\alpha_{q,r}, & x_{\mathcal B}&\leftarrow x_{\mathcal B}-\theta_p\,\alpha_q, & x_q&\leftarrow x_q+\theta_p ,
+\end{aligned}
+\end{equation}
+where the leaving variable goes to the bound it violated. The dual steepest-edge weights are
+updated exactly as in Forrest and Goldfarb~\cite{forrest1992}, with one more FTRAN $\tau=B^{-1}\rho_r$
+and $\beta_r=\|\rho_r\|^2$:
+\begin{equation}\label{eq:dse-update}
+  w_i\leftarrow \max\Bigl(w_i + \Bigl(\frac{\alpha_{iq}}{\alpha_{rq}}\Bigr)^{\!2}\beta_r - 2\frac{\alpha_{iq}}{\alpha_{rq}}\tau_i,\;
+  10^{-4}\Bigl(1+\Bigl(\frac{\alpha_{iq}}{\alpha_{rq}}\Bigr)^{\!2}\Bigr)\Bigr)\ (i\ne r),\qquad
+  w_r\leftarrow\max\Bigl(\frac{\beta_r}{\alpha_{rq}^2},10^{-8}\Bigr).
+\end{equation}
+The lower bounds on the weights keep rounding from driving a weight to zero or below. Finally $q$
+replaces the leaving variable in the basis, and an eta vector is appended to the factorisation
+(\cref{sec:lu}). \Cref{fig:simplex-flow} shows the whole loop.
+
+\begin{figure}[p]
+\centering
+\begin{tikzpicture}[node distance=5.5mm and 8mm]
+  \node[term] (start) {start: basis $\mathcal B$, bounds, costs};
+  \node[blk,below=of start,minimum width=5.4cm] (fac) {refactorise $B$ (or reuse LU + etas)\\[-1pt]{\scriptsize recompute $x_{\mathcal B}$, $y$, $d$; repair wrong-sign $d_j$}};
+  \node[blk,below=of fac,minimum width=5.4cm] (price) {pricing: $r=\arg\max\delta_i^2/w_i$ \scriptsize(DSE)};
+  \node[dec,below=of price] (any) {row\\found?};
+  \node[term,fill=igreen,draw=igreen,right=14mm of any] (opt) {optimal (phase done)};
+  \node[blk,below=of any,minimum width=5.4cm] (row) {BTRAN $\rho_r=B\mT e_r$;\ pivot row $\alpha_r=\rho_r\T[A\;{-I}]$};
+  \node[blk,below=of row,minimum width=5.4cm] (ratio) {bound-flipping ratio test + Harris\\[-1pt]{\scriptsize\cref{alg:ratio}: entering $q$, flips $F$}};
+  \node[dec,below=of ratio] (cand) {$q$\\exists?};
+  \node[dec,right=14mm of cand] (fresh) {fresh\\factor?};
+  \node[term,fill=saffron,draw=saffron,right=8mm of fresh] (inf) {primal infeasible};
+  \node[blk,below=of cand,minimum width=5.4cm] (ftran) {FTRAN $\alpha_q=B^{-1}\bar a_q$};
+  \node[dec,below=of ftran] (agree) {$\alpha_{q,r}\approx\alpha_{rq}$?};
+  \node[blkm,left=10mm of agree,text width=2.4cm] (skip) {refactorise;\\[-1pt]{\scriptsize skip row $r$ if factor was fresh}};
+  \node[blk,below=of agree,minimum width=5.4cm] (upd) {apply flips; update $d$, $x_{\mathcal B}$, $w$\\[-1pt]{\scriptsize\eqref{eq:updates}, \eqref{eq:dse-update}}};
+  \node[blk,below=of upd,minimum width=5.4cm] (chg) {basis change; append eta};
+  \node[dec,below=of chg] (due) {refactor\\due?};
+  \draw[flow] (start) -- (fac);
+  \draw[flow] (fac) -- (price);
+  \draw[flow] (price) -- (any);
+  \draw[flow] (any) -- node[lbl,above]{no} (opt);
+  \draw[flow] (any) -- node[lbl,right]{yes} (row);
+  \draw[flow] (row) -- (ratio);
+  \draw[flow] (ratio) -- (cand);
+  \draw[flow] (cand) -- node[lbl,above]{no} (fresh);
+  \draw[flow] (fresh) -- node[lbl,above]{yes} (inf);
+  \draw[flow] (fresh.north) -- node[lbl,right,pos=0.3]{no: confirm} ++(0,1.0) |- ([yshift=-1mm]fac.east);
+  \draw[flow] (cand) -- node[lbl,right]{yes} (ftran);
+  \draw[flow] (ftran) -- (agree);
+  \draw[flow] (agree) -- node[lbl,above]{no} (skip);
+  \draw[flow] (skip.north) |- ([yshift=1mm]fac.west);
+  \draw[flow] (agree) -- node[lbl,right]{yes} (upd);
+  \draw[flow] (upd) -- (chg);
+  \draw[flow] (chg) -- (due);
+  \draw[flow] (due.east) -- node[lbl,above,pos=0.2]{yes} ++(2.6,0) |- ([yshift=2mm]fac.east);
+  \draw[flow] (due.west) -- node[lbl,above,pos=0.2]{no} ++(-3.9,0) |- (price.west);
+\end{tikzpicture}
+\caption[Dual simplex iteration loop]{The dual simplex iteration loop of \file{lp/simplex.py}.
+Diamonds are tests. Every path that could declare a result on a possibly inaccurate
+factorisation (a missing ratio-test candidate, a pivot that the row and the column see
+differently) first refactorises and repeats the iteration.}
+\label{fig:simplex-flow}
+\end{figure}
+
+\subsection{Phase 1, perturbation and cleanup}
+\paragraph{Dual phase 1 by auxiliary boxes}
+The all-logical start basis is rarely dual feasible. Following Fourer~\cite{fourer1994}
+(Koberstein~\cite[§4.1.2]{koberstein2005}), phase~1 solves the same problem with every bound replaced by
+a box:
+\begin{equation}\label{eq:aux}
+  \text{free}\to[-1,1],\qquad \text{lower only}\to[0,1],\qquad \text{upper only}\to[-1,0],\qquad
+  \text{boxed or fixed}\to[0,0].
+\end{equation}
+Every variable of the auxiliary problem is boxed, so any basis becomes dual feasible once each
+nonbasic variable is placed at the bound its reduced cost prefers. The dual simplex therefore starts
+at once. An optimal basis of the auxiliary problem is dual feasible for the real problem whenever the
+real problem is dual feasible at all. The code does not test the auxiliary objective. Phase~2
+starts from the phase-1 basis, and any reduced cost left with the wrong sign is repaired by the
+flips and cost shifts described below. If the real problem is dual infeasible (unbounded), the
+shifted costs are removed at the end and the primal cleanup finds the unbounded ray.
+
+\paragraph{Cost perturbation}
+Degenerate LPs make many ratio-test breakpoints tie at zero, and the dual simplex can then cycle
+or stall. Both phases therefore run on perturbed costs~\cite[§6.2.2.3]{koberstein2005}:
+\begin{equation}\label{eq:perturb}
+  \tilde c_j = c_j + \sigma_j\,5\cdot10^{-7}(1+|c_j|)(1+\xi_j),\qquad \xi_j\sim U[0,1],
+\end{equation}
+with $\sigma_j=-1$ for a variable at its upper bound and $+1$ otherwise. The direction keeps the
+start dual feasible, and the random magnitude breaks the ties. Basic, fixed and free nonbasic
+variables are not perturbed. The random factors $\xi$ come from a generator with a fixed seed and are
+drawn once per instance, so runs are reproducible and the warm-started re-solves of branch-and-bound
+all see the same perturbation.
+
+\paragraph{Cost shifting}
+If the entering candidate's reduced cost has the wrong sign (by less than the tolerance, which
+the relaxed test allows), its cost is shifted so that $d_q=0$ before the step. The dual objective
+then never moves backwards~\cite[§6.2.2.2]{koberstein2005}. After each refactorisation the same fix
+is applied to all nonbasics: a boxed variable with a wrong-sign reduced cost is flipped to its other
+bound, and any other variable has its cost shifted.
+
+\paragraph{Cleanup by primal simplex}
+When phase~2 is optimal, the perturbation and shifts are removed: the true costs are restored and
+$y$, $d$ recomputed. Any dual infeasibility that remains is removed by a primal simplex on the same
+factorisation. It prices by the largest dual infeasibility, uses a Harris two-pass ratio test over the
+basic variables, and flips the entering variable instead of pivoting when it reaches its own
+other bound first. The cleanup runs with the dual tolerance tightened to $10^{-9}$
+(\cref{sec:simplex-safeguards}). If it loses primal feasibility by more than $10\epsilon_p$, the dual
+simplex runs once more. On return the duals are recomputed exactly as $y=B\mT c_{\mathcal B}$ for
+the true costs.
+
+\subsection{Warm starts for branch-and-bound}
+A \code{SimplexLP} object keeps its factorisation, basis, weights and phase-1 status between calls.
+\code{set\_structural\_bounds} changes only the variables whose bounds differ, and re-places
+nonbasic ones at their new bounds. \code{get\_basis} and \code{load\_basis} save and restore a basis as
+one status byte per variable. If the loaded basis has the same basic set as the current one, the
+LU and eta file remain valid and only $x_{\mathcal B}$, $y$ and $d$ are recomputed; otherwise the
+basis is refactorised. After a branching change the parent's optimal basis stays dual feasible, so a
+child node is typically re-optimised in a few dual pivots.

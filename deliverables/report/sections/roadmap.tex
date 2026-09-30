@@ -1,0 +1,52 @@
+% Section 16: limitations and roadmap.
+\section{Limitations and roadmap}\label{sec:roadmap}
+
+\subsection{Limitations}
+\begin{itemize}
+  \item \textbf{Speed.} The dual simplex is about \gmrSpx{} times slower than HiGHS on Netlib
+        (geometric mean of per-instance ratios; \ratioSpx{} in shifted geometric mean), and
+        branch-and-bound is \ratioMip{} times slower on the MIPLIB instances it solves. The iteration
+        drivers are Python; only the kernels are compiled.
+  \item \textbf{MILP strength.} \nMip{} of \nMipTot{} MIPLIB~3 instances are proved optimal in
+        \tlMip\,s against \nMipRefOpt{} for HiGHS. The MILP case studies do not yet solve. MIP presolve
+        only tightens bounds, Gomory mixed-integer is the only cut family, the heuristics are simple, and
+        there is no parallel tree search.
+  \item \textbf{Presolve.} Only reductions with a simple exact postsolve exist so far
+        (\cref{sec:presolve}). Doubleton equations, forcing rows, dominated columns, parallel rows and
+        columns, and coefficient tightening are missing, and QPs are not presolved at all.
+  \item \textbf{Interior points.} Infeasibility is detected heuristically, not certified. There is no
+        crossover to a basic solution, and the QP termination test can accept a point whose
+        objective is wrong (\cref{sec:results}).
+  \item \textbf{Linear algebra.} FTRAN and BTRAN use dense work vectors, updates are product-form, and
+        the Cholesky is up-looking rather than supernodal, so it uses no dense BLAS kernels.
+  \item \textbf{Scope.} No MIQP, no second-order cones, no SOS constraints, no callbacks or modelling
+        layer beyond the Python API and MPS files.
+\end{itemize}
+
+\subsection{Roadmap, in order of expected payoff}
+\begin{enumerate}
+  \item \textbf{Move the simplex driver into compiled code.} Moving the whole iteration into one Numba
+        (or C) loop removes the per-call overhead that dominates small problems. We expect this to be
+        the largest single speed-up.
+  \item \textbf{Complete presolve}, following the census order: doubleton equations and the
+        aggregator, forcing rows, dominated columns, parallel rows and columns, then MIP coefficient
+        tightening and probing.
+  \item \textbf{MIP:} MIR and knapsack-cover cuts with a cut pool and ageing, feasibility jump and a
+        feasibility pump for first incumbents, RINS/RENS-style neighbourhood search, reduced-cost fixing
+        and a root restart.
+  \item \textbf{Linear algebra:} hyper-sparse FTRAN/BTRAN, a Forrest--Tomlin update, and a supernodal
+        Cholesky/$LDL\T$ with dense kernels, which would also make a GPU factorisation possible.
+  \item \textbf{Interior points:} a homogeneous self-dual formulation for certified infeasibility,
+        crossover to a vertex, and a stricter QP gap test.
+  \item \textbf{Concurrent LP:} race dual simplex, interior point and GPU PDLP and take the first answer,
+        as cuOpt does. The three engines already exist.
+  \item \textbf{Refinery-scale validation:} run the case-study MILPs to proven optimality, and add
+        MRPL's own planning models when they become available.
+\end{enumerate}
+
+\subsection{Conclusion}
+\nirnay{} shows that a solver meeting the independence requirement of SIH26119 can be built: every
+factorisation and algorithm is our own, the answers are verified against independent solvers, and on
+the standard LP and QP test sets it is correct. It is not yet fast, and its MILP code is far behind the
+state of the art. The report documents both the engine and its numerical failures, so the work can be
+continued.

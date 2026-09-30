@@ -1,0 +1,114 @@
+% Section 14: industrial case studies.
+\section{Industrial case studies}\label{sec:cases}
+
+Benchmarks show that a solver is correct; case studies show that it fits the problems the problem
+statement is about. \file{nirnay/cases/} builds \nCases{} optimisation models from public data, most of
+it Indian. Every module carries a \code{CASE\_INFO} record of its sources (URL and licence), of what is
+taken from them unchanged, and of what is assumed. \file{docs/CASE\_STUDIES.md} documents each model in
+full. Each case is written to \file{data/cases/<case>.mps} and re-solved by HiGHS as a reference.
+\Cref{tab:cases} gives the sizes.
+
+\begin{table}[ht]
+\centering\small
+\caption[Case-study models]{Case-study models: problem class and size of the default instance, read
+from the MPS files in \file{data/cases/} (integer columns in parentheses).}
+\label{tab:cases}
+\begin{tabularx}{\linewidth}{@{}X l l r r r@{}}
+\toprule
+Case & Module & Class & Rows & Columns & Nonzeros\\
+\midrule
+\rows{data/cases_sizes.tex}
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{The models}
+\paragraph{Refinery crude selection and blending (LP)}
+The model chooses how much of each crude to run on each of MRPL's three crude distillation units
+(capacities from MRPL's public project filing), where each distillation cut goes, and how to blend
+BS-VI petrol (MS\,91, MS\,95), BS-VI diesel, ATF, LPG, naphtha and fuel oil to the BIS
+specifications (IS~2796, IS~1460, IS~1571), to maximise gross margin at PPAC's 2024--25 average
+prices. Crude assays come from the US Department of Energy's Strategic Petroleum Reserve (public
+domain). Every cut of every crude is its own stream, so the property blending is linear. For a product
+pool $P$ with components $i$ of mass $m_i$ and density $\rho_i$, a volumetric specification such as the
+octane number is written
+\begin{equation}\label{eq:blend}
+  \sum_{i\in P}\frac{m_i}{\rho_i}\bigl(\mathrm{RON}_i-\mathrm{RON}_{\min}\bigr)\ \ge\ 0 ,
+\end{equation}
+which is linear in the mass flows. Density, cetane index, smoke point, naphthalenes and sulphur are
+handled the same way.
+
+\paragraph{Twelve-month production plan (MILP)}
+Twelve monthly copies of the refinery network are linked by product inventories and storage limits.
+Crude is bought in integer parcels, at most three crudes are processed per month (tank segregation),
+and the FCC severity is a binary choice with at most two changeovers per year. Monthly demand follows
+PPAC's national consumption pattern.
+
+\paragraph{Thermal unit commitment (MILP)}
+The 73 thermal units of the RTS-GMLC system over 48 hours, with the tight and compact formulation of
+Morales-España, Latorre and Ramos~\cite{moralesespana2013} as published with PGLib-UC: on, start and
+stop binaries, start-up categories, ramping, minimum up and down times, spinning reserve, and a
+piecewise-linear production cost.
+
+\paragraph{Economic dispatch with a DC network (QP)}
+Quadratic generation cost over the 2000-bus PGLib-OPF case, with DC power flow, line limits and
+angle-difference limits. The HiGHS optimum matches the DC objective PGLib-OPF publishes for the case.
+
+\paragraph{Capacitated facility location (MILP)}
+OR-Library's \code{capb} instance~\cite{beasley1990} (100 depots, 1000 customers) with the strong
+linking constraints $x_{ij}\le y_i$. The HiGHS optimum equals the published optimum. It stands in for
+depot and terminal network design, for which no Indian dataset with costs and capacities is public.
+
+\paragraph{BS-VI fuel distribution across India (LP)}
+A transport model from 21 Indian refineries to 36 states and union territories. It meets every state's
+2024--25 MS and HSD sales (PPAC) with the least tonne-kilometres, using refinery and state locations
+from Wikidata.
+
+\paragraph{Crude-oil unloading and blending schedule (MILP)}
+The crude scheduling problems of Lee et al.~\cite{lee1996} in the multi-operation sequencing
+formulation of Mouret, Grossmann and Pestiaux~\cite{mouret2009} (the MILP relaxation that is the first
+step of their method). All four instances reproduce the published optimal values.
+
+\subsection{Reference solutions and \nirnay{}'s results}
+\Cref{tab:cases-ref} gives the HiGHS reference for each case file, and \cref{tab:cases-runs} the
+record of \nirnay{}'s runs kept in the case-study document.
+
+\begin{table}[ht]
+\centering\small
+\caption[HiGHS reference results for the cases]{HiGHS \verHighs{} reference results for the case files
+(\file{data/cases/reference.csv}). Refinery objectives are negative gross margins in thousand US\$.
+The unit-commitment reference was solved to a \ucGapTarget\% gap target (final gap \ucGap\%), as in
+PGLib-UC's own reference script, so it is not a proven optimum.}
+\label{tab:cases-ref}
+\begin{tabular}{@{}l l l r r r@{}}
+\toprule
+Case & Class & Status & Objective & MIP gap & Time (s)\\
+\midrule
+\rows{data/cases_ref.tex}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\ifnum\haveCaseRuns=1
+\begin{table}[ht]
+\centering\small
+\caption[\nirnay{} on the case studies]{\nirnay{} on the case studies (from the ``NIRNAY on the
+cases'' record in \file{docs/CASE\_STUDIES.md}; one process per run, 120\,s limit, times including
+Numba compilation on first call).}
+\label{tab:cases-runs}
+\begin{tabular}{@{}l l l r r r@{}}
+\toprule
+Case & Method & Status & Objective & Rel.\ diff. & Time (s)\\
+\midrule
+\rows{data/cases_runs.tex}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\nCaseRunsOptimal{} of the \nCaseRuns{} recorded runs reach the HiGHS optimum: both LP cases with the
+simplex and the interior point, and the economic dispatch QP. The MILP cases do not yet solve.
+The twelve-month refinery plan stops at the time limit with a poor incumbent, the crude schedule
+returns nothing within the wall limit, and unit commitment and facility location, the two largest
+models in \cref{tab:cases}, were not attempted with branch-and-bound. This is the same gap as on MIPLIB
+(\cref{sec:mip-results}), and closing it is the first item of the roadmap.
+\fi

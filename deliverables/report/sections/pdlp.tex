@@ -1,0 +1,184 @@
+% Section 8: PDLP on CPU and GPU.
+\section{PDLP: a first-order LP method on CPU and GPU}\label{sec:pdlp}
+
+The simplex and interior-point methods need sparse factorisations, and those are hard to run
+efficiently on a GPU. PDLP~\cite{applegate2021} needs only products with $A$ and $A\T$ and vector
+operations, which GPUs do well. \file{lp/pdlp.py} implements the restarted, preconditioned
+primal--dual hybrid gradient method (PDHG~\cite{chambolle2011}) with the enhancements of PDLP and of
+its GPU descendants cuPDLP.jl~\cite{lu2023cupdlp} and cuPDLP-C~\cite{lu2023cupdlpc}. The method is
+written once over an array module (NumPy or CuPy); the inner loop has a Numba backend for the CPU
+and a CUDA backend for the GPU.
+
+\subsection{The PDHG step}
+For the saddle-point form \eqref{eq:saddle}, one step with primal step $\tau=\eta/\omega$ and dual
+step $\sigma=\eta\omega$ (step size $\eta$, primal weight $\omega$) is
+\begin{align}
+  x' &= \proj_X\bigl(x-\tau(c-A\T y)\bigr),\label{eq:pdhg-x}\\
+  y' &= \arg\max_{y\in Y}\; -y\T A(2x'-x) + p(y) - \tfrac{1}{2\sigma}\|y-y_k\|^2 .\label{eq:pdhg-y}
+\end{align}
+The dual step has a closed form. With $t=y-\sigma A(2x'-x)$, Moreau's identity gives
+\begin{equation}\label{eq:moreau}
+  y' = t + \sigma\,\proj_{[r^l,r^u]}(-t/\sigma) = t - \clip\bigl(t,\,-\sigma r^u,\,-\sigma r^l\bigr),
+\end{equation}
+so an equality row gets $y-\sigma(Ax'_{\text{extr}}-b)$, a $\ge$ row gets $\max(0,t+\sigma r^l)$, and a
+free row gets~$0$. No slack columns are introduced: ranged rows, bounds and free rows are all
+handled by the two projections.
+
+\paragraph{Adaptive steps}
+PDLP's step-size rule (its Algorithm~3) accepts a step when $\eta\le\bar\eta$, where
+\begin{equation}\label{eq:pdlp-step}
+  \bar\eta = \frac{\omega\|x'-x\|^2+\|y'-y\|^2/\omega}{2\,\bigl|(x'-x)\T A\T(y'-y)\bigr|},\qquad
+  \eta_{\text{next}} = \min\Bigl(\bigl(1-(k+1)^{-0.3}\bigr)\bar\eta,\ \bigl(1+(k+1)^{-0.6}\bigr)\eta\Bigr).
+\end{equation}
+A rejected step is not committed and is retried with $\eta_{\text{next}}$. The first step is
+$\eta_0=1/\|A\|_{\max}$. Accepted iterates enter a running average weighted by their step size.
+
+\paragraph{Restarts and the primal weight}
+Every 64 attempts the method evaluates the primal-weighted KKT error
+$\sqrt{\omega\,\|r_p\|^2+\|r_d\|^2/\omega+\text{gap}^2}$ at the current iterate and at the
+average, and restarts from the better of the two, following cuPDLP's criteria~\cite{lu2023cupdlp}.
+It restarts when that error has fallen below $0.2$ times its value at the last restart; or below $0.8$
+times that value while rising since the previous check; or when the iterations since the last restart
+exceed $0.36$ of all iterations. Restarts are what give PDHG linear convergence on LPs~\cite{applegate2023}.
+At a restart the primal weight is smoothed towards the ratio of dual to primal movement,
+\begin{equation}\label{eq:omega}
+  \omega \leftarrow \exp\bigl(\theta\log(\|\Delta y\|/\|\Delta x\|)+(1-\theta)\log\omega\bigr),\qquad \theta=0.5 .
+\end{equation}
+
+\paragraph{Preconditioning}
+Ten Ruiz iterations~\cite{ruiz2001} divide each row and column by the square root of its largest
+entry. One Pock--Chambolle pass~\cite{pock2011} ($\alpha=1$) then divides by the square roots of the
+row and column $\ell_1$ norms. Finally the bounds and the objective are rescaled by
+$\beta_b=1+\|\text{bounds}\|_2$ and $\beta_c=1+\|c\|_2$, as in cuPDLP-C~\cite{lu2023cupdlpc}, so that
+$\omega$ starts near~1. The initial weight is $\omega_0=\|c\|/\|b\|$ on the scaled problem.
+
+\paragraph{Termination and infeasibility}
+The tests are PDLP's relative ones, evaluated on the \emph{unscaled} problem:
+$\|r_p\|_2\le\epsilon(1+\|b\|_2)$, $\|r_d\|_2\le\epsilon(1+\|c\|_2)$ and
+$|c\T x-\phi|\le\epsilon(1+|c\T x|+|\phi|)$, where $r_d$ is the part of $c-A\T y$ that the variable
+bounds cannot absorb. The default is $\epsilon=10^{-4}$. Every fourth check (256 attempts), the
+difference between the current iterate and the one at the previous check is projected onto the
+recession cones of the bounds and tested as a Farkas certificate~\cite{applegate2024}. A dual ray
+with positive objective and relative infeasibility below $10^{-8}$ proves primal infeasibility; a
+primal ray with $c\T\Delta x<0$ proves unboundedness.
+
+\subsection{Two backends}
+\paragraph{CPU}
+One Numba call runs a whole block of 64 attempts, in three passes over the data per attempt:
+(1)~the primal step \eqref{eq:pdhg-x}; (2)~a row pass that computes $(Ax')_i$ and immediately takes
+the dual step \eqref{eq:moreau} for row~$i$; and (3)~a column pass that computes $(A\T y')_j$ together
+with the two reductions the step rule \eqref{eq:pdlp-step} needs. The average is updated lazily inside
+the next attempt's first two passes. The passes are thread-parallel when $\nnz(A)\ge30\,000$. Below
+that, on the development laptop, the fork/join cost of the thread pool outweighed the gain.
+
+\paragraph{GPU}
+Each attempt is four CUDA kernels (\cref{fig:gpu}). A \emph{commit} kernel adds the previous accepted
+step to the average and takes the primal step. A \emph{rows} kernel computes $Ax'$ with a group of $G$
+lanes per row, reducing with warp shuffles, and fuses the dual step. A \emph{columns} kernel computes
+$A\T y'$ and fuses $\|\Delta x\|^2$ and $\Delta x\T A\T\Delta y$. A one-thread \emph{step-size}
+kernel applies \eqref{eq:pdlp-step}. $G$ is the largest power of two not above the mean row (or
+column) length, capped at~32. The accept/reject decision stays on the device: a rejected step is simply
+not committed by the next commit kernel. A block of 64 attempts therefore needs no host round trip,
+and it is captured once as a CUDA graph and replayed. The host reads one small array of scalars per
+check.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[lbl,anchor=east] at (-0.2,0) {GPU stream};
+  \foreach \a/\x in {1/0,2/3.35} {
+    \node[blk,fill=navy,text=white,minimum width=0.72cm,minimum height=0.7cm,font=\sffamily\tiny] (c\a) at (\x+0.36,0) {commit\\x-step};
+    \node[blk,fill=sky,draw=sky,text=white,minimum width=0.72cm,minimum height=0.7cm,font=\sffamily\tiny] (r\a) at (\x+1.14,0) {rows\\$Ax'$,\,$y'$};
+    \node[blk,fill=igreen,draw=igreen,text=white,minimum width=0.72cm,minimum height=0.7cm,font=\sffamily\tiny] (k\a) at (\x+1.92,0) {cols\\$A\T y'$};
+    \node[blk,fill=saffron,draw=saffron,text=white,minimum width=0.72cm,minimum height=0.7cm,font=\sffamily\tiny] (s\a) at (\x+2.7,0) {step\\$\bar\eta$};
+  }
+  \node[font=\sffamily\small] at (7.35,0) {$\cdots$};
+  \node[blk,fill=navy,text=white,minimum width=0.72cm,minimum height=0.7cm,font=\sffamily\tiny] (fl) at (8.2,0) {flush};
+  \draw[decorate,decoration={brace,amplitude=5pt,mirror},muted] (0,-0.5) -- node[below=5pt,lbl]{attempt 1} (3.06,-0.5);
+  \draw[decorate,decoration={brace,amplitude=5pt,mirror},muted] (3.35,-0.5) -- node[below=5pt,lbl]{attempt 2} (6.41,-0.5);
+  \draw[decorate,decoration={brace,amplitude=5pt},navy] (0,0.5) -- node[above=5pt,lbl,text=navy]{one CUDA graph: 64 attempts, captured once, replayed; accept/reject decided on the device} (8.56,0.5);
+  \node[blkm,minimum width=3.6cm,align=center] (host) at (11.3,0) {host check every 64\\[-1pt]{\scriptsize KKT (unscaled), restart,}\\[-1pt]{\scriptsize primal weight, Farkas rays}};
+  \draw[flow] (fl.east) -- (host.west);
+  \draw[flow,muted] (host.south) -- ++(0,-0.9) -| node[lbl,below,pos=0.25]{next block (same graph)} (c1.south);
+\end{tikzpicture}
+\caption[PDLP on the GPU]{PDLP on the GPU. Each attempt is four fused kernels; the step-size
+decision never leaves the device. A block of 64 attempts is one replay of a captured CUDA graph, and
+the host is involved only at the check between blocks.}
+\label{fig:gpu}
+\end{figure}
+
+\subsection{Results}\label{sec:pdlp-results}
+\paragraph{Netlib} PDLP at its default tolerance $10^{-4}$ reports \code{optimal} on \nPdlp{} of the
+\nPdlpTot{} Netlib problems (\tlPdlp\,s limit). \nPdlpTimeLimit{} hit the time limit
+(\pdlpTimeLimitNames) and \nPdlpIterLimit{} the iteration limit (\pdlpIterLimitNames). These are
+the badly scaled problems that every PDLP implementation in our comparator study also fails
+(\cref{sec:competitors}). A relative KKT tolerance of $10^{-4}$ does not bound the objective error by
+$10^{-4}$: \nPdlpTight{} of the problems are within $10^{-4}$ of the HiGHS objective,
+\nPdlpLoose{} within $10^{-3}$, and only \nPdlpStrict{} within the $10^{-6}$ used to score the other
+engines. The worst objective errors among the ``optimal'' runs are \pdlpWorst. The median run takes
+\medItPdlp{} iterations (the longest \maxItPdlp). The shifted geometric mean time is \sgmPdlp\,s
+against \sgmPdlpRef\,s for HiGHS. Netlib problems are small and hard, and PDLP is the wrong tool for
+them. It is there to show correctness, not speed.
+
+\ifnum\haveLarge=1
+\paragraph{Large LPs, CPU against GPU}
+The regime PDLP is built for is large, structured LPs. \Cref{tab:large,fig:large} show the
+\nLarge{} large instances run so far\ifnum\nLarge<\nLargeList{} (the sweep over \nLargeList{} files is
+still running)\fi, from the Mittelmann benchmark sets~\cite{mittelmann}, all at relative tolerance
+\largeTol{}, on an \largeGpuHw{} against the CPU backend on the laptop's six cores (12 threads). On
+the \nLargeBothOk{} instances both backends finish, the GPU-over-CPU speed-up ranges from
+\largeSpeedMin{} to \largeSpeedMax{} (geometric mean \largeSpeedGm; a value below~1 means the GPU was
+slower). On \nLargeGpuOnly{} more
+(\largeGpuOnlyNames) only the GPU finishes within the \largeLimit\,s limit, and \nLargeNeither{}
+finished on neither. HiGHS in the same table runs its interior-point method without crossover at its
+default $10^{-8}$ tolerances, which gives the reference objective. That is a far more accurate answer,
+so the comparison with the PDLP times is not like for like. HiGHS's interior point at the same
+$10^{-4}$ tolerance (last column) is the closer comparison. Where both finish, the ratio of the
+high-accuracy HiGHS time to the GPU time ranges from \largeVsHighsMin{} to \largeVsHighsMax.
+
+\begin{table}[ht]
+\centering\small
+\caption[PDLP on large LPs: CPU against GPU]{PDLP on large LPs (LP relaxations for the MIPLIB
+files): wall time of \nirnay{} PDLP on the CPU (Numba, 12 threads) and on the GPU (CuPy), the
+relative objective error of the GPU run against the HiGHS reference, and HiGHS's interior point
+at its default tolerance (reference) and at the PDLP tolerance. $^\dagger$: stopped at the time
+limit; ``$>$'' is then a lower bound on the speed-up. $^\ddagger$: HiGHS did not report
+\code{Optimal}.}
+\label{tab:large}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}l rrr rrr r rr@{}}
+\toprule
+ & & & & \multicolumn{3}{c}{\nirnay{} PDLP} & & \multicolumn{2}{c}{HiGHS IPM (s)}\\
+\cmidrule(lr){5-7}\cmidrule(l){9-10}
+Instance & $m$ & $n$ & nnz & CPU (s) & GPU (s) & $\times$ & rel.\ err & $10^{-8}$ & $10^{-4}$\\
+\midrule
+\rows{data/large_pdlp.tex}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.95\linewidth, height=6cm,
+  ybar, bar width=5pt, ymode=log, log origin=infty,
+  ylabel={wall time (s)},
+  xtick=data, xticklabels from table={data/large_pdlp.dat}{name},
+  xticklabel style={font=\ttfamily\scriptsize,rotate=30,anchor=north east},
+  enlarge x limits=0.06,
+  ymajorgrids, legend style={at={(0.5,1.03)},anchor=south}, legend columns=3,
+  ymin=0.1, ymax=1000,
+]
+\addplot[fill=muted!60,draw=muted] table[x=x,y=cpu] {data/large_pdlp.dat};
+\addplot[fill=saffron,draw=saffron] table[x=x,y=gpu] {data/large_pdlp.dat};
+\addplot[fill=navy,draw=navy] table[x=x,y=highs] {data/large_pdlp.dat};
+\legend{{\nirnay{} PDLP (CPU)},{\nirnay{} PDLP (GPU)},{HiGHS IPM $10^{-8}$}}
+\end{axis}
+\end{tikzpicture}
+\caption[PDLP on large LPs]{Wall time on the large LPs (log scale), from
+\file{results/large\_pdlp\_gpu.csv}. The PDLP runs stop at relative tolerance $10^{-4}$;
+the HiGHS reference solves to $10^{-8}$.}
+\label{fig:large}
+\end{figure}
+\fi

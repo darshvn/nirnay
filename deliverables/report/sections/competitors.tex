@@ -1,0 +1,92 @@
+% Section 15: competitor analysis summary.
+\section{Competitor analysis}\label{sec:competitors}
+
+Before deciding what to build next, we installed and ran the established solvers on the development
+machine and read their logs (\file{docs/COMPETITOR\_ANALYSIS.md}, driver \file{bench/comparators.py}).
+The field covers HiGHS (dual simplex, IPX interior point, two PDLP variants, MIP, QP), SCIP with SoPlex,
+Google OR-Tools (GLOP, PDLP, CLP, CBC, SCIP, CP-SAT), CBC, GLPK, Clarabel, OSQP and NVIDIA cuOpt on the
+GPU. CPLEX, Gurobi and Xpress are commercial and were not installed. Each (instance, solver) pair ran in
+its own process at default settings on small sets of \nCompLpInst{} Netlib LPs, \nCompMipInst{} MIPLIB~3
+instances and \nCompQpInst{} Maros--Mészáros QPs. \Cref{tab:comp-lp,tab:comp-mip,tab:comp-qp} add
+\nirnay{}'s own results on the same instances, taken from its sweeps.
+
+\begin{table}[ht]
+\centering\small
+\caption[Comparator solvers on the Netlib LP set]{Comparator solvers on the LP set (\CompLpInstances).
+Solved: objective within $10^{-6}$ of the reference ($10^{-3}$ for the first-order PDLP and OSQP runs,
+whose default tolerances are loose). Times: shifted geometric mean over the solved instances and the
+largest time. From \file{results/comparators\_lp.csv} and \nirnay{}'s sweeps; sorted by solved count,
+then time.}
+\label{tab:comp-lp}
+\begin{tabular}{@{}l l r r r@{}}
+\toprule
+Solver & Platform & Solved & sgm (s) & max (s)\\
+\midrule
+\rows{data/comp_complp.tex}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering\small
+\begin{minipage}[t]{0.52\linewidth}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\captionof{table}[Comparator solvers on the MIPLIB 3 set]{MIP set (\CompMipInstances); solved: optimal within $10^{-4}$. $^\ast$: GPU.}
+\label{tab:comp-mip}
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+Solver & Solved & sgm (s) & max (s)\\
+\midrule
+\rows{data/comp_compmip_short.tex}
+\bottomrule
+\end{tabular}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.45\linewidth}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\captionof{table}[Comparator solvers on the Maros--Mészáros set]{QP set (\CompQpInstances); solved: within $10^{-6}$ ($10^{-3}$ for OSQP).}
+\label{tab:comp-qp}
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+Solver & Solved & sgm (s) & max (s)\\
+\midrule
+\rows{data/comp_compqp_short.tex}
+\bottomrule
+\end{tabular}
+\end{minipage}
+\end{table}
+
+\subsection{What the comparison shows}
+\begin{itemize}
+  \item \textbf{Every winner is a dual simplex first.} HiGHS, SoPlex inside SCIP, GLOP and cuOpt's
+        concurrent mode all rely on a dual simplex for small and medium LPs and for node LPs. The
+        interior point is the alternative for large LPs, and PDLP a third engine for very large LPs at
+        low accuracy. cuOpt races all three and takes the first answer, and on the small Netlib LPs its
+        own concurrent mode always picked the CPU dual simplex. \nirnay{} has the same three engines;
+        running them concurrently is on the roadmap.
+  \item \textbf{PDLP failures are algorithmic.} Every PDLP implementation tested failed on the same
+        badly scaled Netlib problems (\code{pilot4}, \code{greenbea}), as ours does. On large,
+        structured LPs the picture reverses: GPU PDLP beats every factorisation-based method on the
+        laptop (\cref{sec:pdlp-results}).
+  \item \textbf{Presolve matters more than anything else.} A census of HiGHS's presolve on Netlib and
+        MIPLIB~3 shows that singleton rows, doubleton equations, the aggregator (free-column
+        substitution), forcing rows, and fixed and dominated columns do most of the work. It is also what
+        makes an interior point robust: Clarabel and GLPK's interior point fail on \code{greenbea}
+        without it, and HiGHS's IPX succeeds with it.
+  \item \textbf{MIP gaps close at the root.} Gomory mixed-integer and (c-)MIR cuts are the common core
+        of SCIP, CBC and cuOpt, with knapsack cover, zero-half, clique and implied-bound cuts next. First
+        incumbents come from cheap heuristics run before or right after the first LP (HiGHS's
+        feasibility jump, SCIP's trivial, locks and shifting heuristics).
+  \item \textbf{References make mistakes too.} The study found a wrong ``optimal'' from one solver's
+        MIP on \code{p0201}, a ``Solved'' status at a $10^{-3}$ objective error from another on
+        \code{greenbea}, false infeasibility verdicts from GLPK's interior point, and a time-limit
+        defect in one PDLP. \nirnay{}'s harness therefore scores against a reference in a separate
+        process and records the reference's own status (\cref{sec:verification}).
+\end{itemize}
+
+\subsection{Licences and cost}
+All the open-source comparators are free: HiGHS (MIT), SCIP and OR-Tools, Clarabel, OSQP and cuOpt
+(Apache-2.0), CBC (EPL-2.0), and GLPK (GPL-3.0, whose copyleft prevents linking into a non-GPL product).
+CPLEX, Gurobi and Xpress are proprietary: their free editions are limited in model size, and
+production licences are sold per user or per deployment, with prices quoted on request. \nirnay{} is
+intended to be released under Apache-2.0, like most of the open-source field, and because it depends
+on no solver library, no licence restriction flows into it.

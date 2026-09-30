@@ -1,0 +1,68 @@
+% Section 1: problem statement and motivation.
+\section{Problem statement and motivation}\label{sec:intro}
+
+\subsection{The problem statement}
+MRPL's problem statement SIH26119, \emph{Indigenous GPU-Accelerated Optimization Solver (Sovereign
+Alternative to Xpress/CPLEX)}, starts from a practical dependency. Refinery crude selection,
+blending, production planning, scheduling and product distribution in India are formulated as
+linear and mixed-integer programmes and solved with a small number of foreign commercial solvers.
+Those solvers are closed: their licences cost money every year, their algorithms cannot be
+inspected or adapted, and their availability depends on vendors outside the country. The
+statement asks for a solver that is developed here, handles the same problem classes, can use
+GPUs, and does not build on any existing solver library.
+
+We read four requirements out of it:
+\begin{enumerate}[label=\textbf{R\arabic*}]
+  \item \textbf{Problem classes:} linear programmes (LP), mixed-integer linear programmes (MILP)
+        and convex quadratic programmes (QP), the classes that planning and scheduling models
+        fall into.
+  \item \textbf{Independence:} no dependence on an existing optimisation solver or sparse direct
+        solver library. The factorisations, orderings and algorithms must be our own code.
+  \item \textbf{Interoperability:} read the MPS and QPS files that modelling tools and every
+        public benchmark library already produce.
+  \item \textbf{Acceleration:} use a GPU where the algorithm can exploit one.
+\end{enumerate}
+
+\subsection{What \nirnay{} is}
+\nirnay{} (Sanskrit/Hindi \emph{nirṇay}, ``decision'') is a Python package whose compute
+kernels are compiled to machine code with Numba and, for the GPU path, to CUDA with CuPy. It has
+three LP engines, which suit different problem shapes:
+\begin{itemize}
+  \item a \textbf{bounded dual simplex} (\cref{sec:simplex}), which produces vertex solutions and
+        re-solves quickly after a bound change: this is the engine branch-and-bound uses;
+  \item a \textbf{primal--dual interior-point method} (\cref{sec:ipm}), whose iteration count
+        grows only slowly with problem size;
+  \item \textbf{PDLP}, a restarted primal--dual hybrid gradient method (\cref{sec:pdlp}). It needs
+        only products with $A$ and $A\T$, so it runs on a GPU and scales to LPs too large to
+        factorise.
+\end{itemize}
+On top of these sit a \textbf{branch-and-bound} MILP solver (\cref{sec:mip}) and a \textbf{QP
+interior-point} method (\cref{sec:qp}). \Cref{fig:arch} shows how the parts fit together.
+
+\subsection{Design principles}
+\begin{description}[style=nextline,leftmargin=1.2em,font=\sffamily\bfseries\color{navy}]
+  \item[Implement, do not wrap.] Every factorisation (LU, Cholesky, $LDL\T$), ordering and
+        solver loop is in the repository. The code depends on NumPy arrays and the Numba
+        compiler, plus CuPy for the GPU path. It depends on no optimisation or sparse-direct
+        library. \Cref{tab:modules} lists the modules with their sizes.
+  \item[Follow the primary literature.] Each module's docstring cites the papers its algorithm
+        comes from, and this report follows those citations. Where the code departs from a
+        paper, the report says so.
+  \item[Verify every answer independently.] Benchmarks run every instance in its own process
+        and re-solve it with a reference solver (HiGHS for LP and MILP, Clarabel for QP) that
+        reads the file with its own parser (\cref{sec:verification}).
+  \item[Report failures.] Tables in this report list every instance, solved or not, and
+        \cref{sec:results} analyses the failures.
+\end{description}
+
+\subsection{Contributions and outline}
+\Cref{sec:formulation} fixes the mathematical forms. \Cref{sec:architecture} describes the system
+and the path of a solve, and \cref{sec:presolve} the presolve and postsolve. \Cref{sec:linalg}
+covers the sparse linear algebra on which every engine rests. \Cref{sec:simplex,sec:ipm,sec:pdlp}
+describe the three LP engines, \cref{sec:mip} branch-and-bound and \cref{sec:qp} the QP method.
+\Cref{sec:safeguards} collects the numerical failures we met and how each was fixed.
+\Cref{sec:verification} explains how answers are checked, \cref{sec:results} gives the benchmark
+results, \cref{sec:cases} the industrial case studies built from Indian public data,
+\cref{sec:competitors} a hands-on comparison with other solvers, and \cref{sec:roadmap} the
+limitations and next steps. The appendices list every benchmark instance and the typesetting
+toolchain of this report.

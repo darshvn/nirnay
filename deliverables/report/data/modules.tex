@@ -1,0 +1,18 @@
+\texttt{model.py} & 210 & problem form, CSC matrix, result object \\
+\texttt{io/mps.py} & 317 & MPS/QPS reader (fixed and free format, gzip, RANGES, MARKER, QUADOBJ) \\
+\texttt{io/mps\_write.py} & 221 & MPS writer (round-trip checked) \\
+\texttt{presolve/scaling.py} & 109 & geometric-mean and equilibration scaling in powers of two \\
+\texttt{linalg/lu.py} & 319 & Gilbert--Peierls sparse LU, threshold pivoting, eta file, basis repair \\
+\texttt{linalg/cholesky.py} & 203 & up-looking sparse Cholesky, elimination tree, pivot guard \\
+\texttt{linalg/ldl.py} & 131 & quasi-definite $LDL^{\mathsf T}$ with dynamic regularisation \\
+\texttt{linalg/ordering.py} & 89 & minimum degree with mass elimination and dense-row deferral \\
+\texttt{linalg/normal.py} & 110 & normal-equations assembly on a fixed pattern \\
+\texttt{linalg/sparse\_kernels.py} & 85 & Numba SpMV and per-line norms \\
+\texttt{lp/simplex.py} & 502 & bounded dual simplex, phase 1, perturbation, primal cleanup \\
+\texttt{lp/\_simplex\_kernels.py} & 165 & pivot row, DSE pricing, bound-flipping ratio test, updates \\
+\texttt{lp/ipm.py} & 301 & Mehrotra predictor--corrector on normal equations \\
+\texttt{lp/pdlp.py} & 1009 & restarted PDHG, CPU (Numba) and GPU (CuPy, CUDA graphs) \\
+\texttt{mip/bnb.py} & 475 & branch-and-bound, reliability branching, heuristics, node heap \\
+\texttt{mip/cuts.py} & 147 & Gomory mixed-integer cuts with safeguards \\
+\texttt{mip/propagate.py} & 127 & activity-based bound propagation \\
+\texttt{qp/ipm.py} & 281 & QP interior point on the regularised augmented system \\

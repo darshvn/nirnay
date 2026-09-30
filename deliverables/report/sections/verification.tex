@@ -1,0 +1,81 @@
+% Section 12: verification methodology.
+\section{Verification methodology}\label{sec:verification}
+
+A solver is useful only if its ``optimal'' can be trusted. \nirnay{} is checked at four levels.
+
+\subsection{Independent references, in separate processes}
+The harnesses \file{bench/run\_lp.py}, \file{run\_mip.py} and \file{run\_qp.py} run every instance
+in a fresh process with a wall-clock limit, so one pathological instance cannot stall or corrupt a
+sweep. Each process first solves a tiny instance, so that loading the Numba-compiled code is not
+charged to the first real instance, and then times only the solve call (file reading excluded).
+The same file is then solved by a reference solver:
+\begin{itemize}
+  \item \textbf{LP and MILP:} HiGHS~\verHighs~\cite{huangfu2018} with the same time limit, reading its
+        own copy of the file;
+  \item \textbf{QP:} Clarabel~\verClarabel~\cite{goulart2024}, an interior-point conic solver. HiGHS's
+        active-set QP solver times out on the larger Maros--Mészáros problems. The model Clarabel sees
+        is read by \emph{HiGHS's} MPS parser, not ours, so a reader bug in \nirnay{} cannot hide by
+        affecting both sides. The failure analysis of the first QP sweep found two defects in this
+        reference, and the harness was corrected for the second sweep. First, at its default
+        tolerances Clarabel's objective is about $10^{-6}$ off on several problems where \nirnay{}
+        matches the published optimum, so the reference now runs at $10^{-11}$. Second, a comparison of
+        the two parsers (\file{tools/qps\_compare.py}) showed that HiGHS~\verHighs{} misreads the RHS
+        section of \code{DPKLO1} and drops coefficients below $10^{-9}$ in \code{HUESTIS},
+        \code{HUES-MOD} and \code{KSIP}. On files where the two parsers disagree, the reference now
+        solves \nirnay{}'s reading and says so in its status.
+\end{itemize}
+Neither reference is imported by the \code{nirnay} package. \file{bench/comparators.py}, which drives
+the other solvers of \cref{sec:competitors}, carries the same rule in its header.
+
+\subsection{What counts as solved}
+With $f$ the objective reported by \nirnay{} and $f^\star$ the reference objective,
+\begin{equation}\label{eq:relerr}
+  \operatorname{err} = \frac{|f-f^\star|}{\max(1,|f^\star|)} .
+\end{equation}
+\begin{itemize}
+  \item \textbf{LP:} status \code{optimal} and $\operatorname{err}<10^{-6}$;
+  \item \textbf{MILP:} status \code{optimal} (relative gap proved $\le10^{-4}$) and
+        $\operatorname{err}\le10^{-4}$;
+  \item \textbf{QP:} status \code{optimal}, $\operatorname{err}<10^{-6}$, and the reference itself
+        reports \code{Solved} or \code{AlmostSolved}. Problems whose reference failed are listed but
+        not scored.
+\end{itemize}
+The harnesses also record the largest row and bound violations (and, for MILP, the integrality
+violation) of the returned $x$ on the original model. A wrong answer therefore cannot pass on the
+objective alone. PDLP stops at a relative KKT tolerance of $10^{-4}$, and its objective errors are reported
+against several thresholds (\cref{sec:pdlp-results}).
+
+\subsection{Optimality conditions after postsolve}
+\file{tools/dual\_check.py} tests the conditions \eqref{eq:kkt-lp} directly on the original model: primal
+feasibility, and the sign of every $y_i$ and $z_j$ against the activity of its row or bound.
+This checks presolve, postsolve, unscaling and the simplex duals together
+(\cref{sec:presolve-bug}).
+\ifnum\haveDualCheck=1 It currently passes on \nDualOk{} of \nDualTot{} Netlib problems with no
+failure; the other \nDualStatus{} stop at its \SI{60}{s} limit.\fi
+
+\subsection{Regression tests and file round trips}
+\file{tests/} holds \nTestFunctions{} test functions (many parametrised over several instances). They
+check each engine against published optimal values: Koch's final Netlib results~\cite{koch2004}, the
+MIPLIB~3 solution values and the Maros--Mészáros repository~\cite{maros1999}. They also check the
+kernels (the $LDL\T$ on a random quasi-definite matrix, propagation on a hand-made example), and
+that every Gomory cut generated on \code{p0033} keeps the known optimal integer point feasible.
+Further tests cover PDLP at three tolerances, on infeasible and unbounded problems, with limits, and
+on the GPU. The MPS reader and writer are checked by round trips: read, write and read again gives
+identical arrays on the benchmark files, and HiGHS reads the original and the written file into the
+same model. The case-study tests re-solve every case file with HiGHS against its stored reference.
+
+\subsection{How speed is measured}
+Times are wall-clock seconds on the development laptop (Intel Core i5-11400H, 6 cores / 12 threads,
+16\,GB RAM, NVIDIA RTX 3050 Laptop GPU with 4\,GB, Windows~11), taken while other work was running.
+Differences below a factor of two on sub-second runs are noise. Two aggregate measures are used:
+\begin{itemize}
+  \item the \textbf{shifted geometric mean} $\operatorname{sgm}_s(t)=\exp\bigl(\frac1N\sum_i\log(t_i+s)\bigr)-s$,
+        with shift $s=\shiftA$\,s (and $s=\shiftB$\,s as a check). The shift keeps sub-millisecond
+        instances from dominating a ratio of means. It also compresses ratios on small instances,
+        so we additionally report the plain geometric mean and the median of per-instance time ratios;
+  \item \textbf{performance profiles}~\cite{dolan2002}: for solver $s$ on problem $p$ let
+        $r_{p,s}=t_{p,s}/\min_{s'}t_{p,s'}$ ($\infty$ if $s$ failed). The profile
+        $\rho_s(\tau)=\frac1N|\{p: r_{p,s}\le\tau\}|$ is the fraction of problems $s$ solves within a
+        factor $\tau$ of the fastest. $\rho_s(1)$ is how often $s$ is fastest, and $\rho_s(\infty)$ how
+        often it solves at all.
+\end{itemize}

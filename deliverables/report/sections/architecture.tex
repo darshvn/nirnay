@@ -1,0 +1,159 @@
+% Section 3: system architecture and data flow.
+\section{System architecture}\label{sec:architecture}
+
+\subsection{Layers}
+\Cref{fig:arch} shows the package in four layers. The input layer turns MPS/QPS files, the
+case-study builders or Python arrays into a \code{Model}. Presolve reduces the model and
+scaling equilibrates it. Five engines solve it. All engines share one layer of sparse kernels, and
+nothing below the API calls code outside the repository except NumPy, Numba and (for the GPU)
+CuPy. \code{nirnay.solve(model, method="auto")} picks branch-and-bound for a MILP, the QP
+interior-point method for a QP and the dual simplex for an LP. The interior-point method and
+PDLP are chosen by name.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  % layer bands
+  \foreach \y/\h/\name in {0/1.35/Input, -1.6/1.35/Presolve, -3.2/2.85/Engines, -6.3/1.6/Kernels}{
+    \draw[layer] (0,\y) rectangle (15.4,\y-\h);
+    \node[rotate=90,font=\sffamily\scriptsize\bfseries,text=navy] at (0.32,\y-\h/2) {\name};
+  }
+  % input
+  \node[blk,minimum width=3.9cm] (mps) at (2.95,-0.675) {MPS / QPS reader\\[-1pt]{\scriptsize\color{muted}fixed, free, gzip, RANGES, QUADOBJ}};
+  \node[blk,minimum width=4.2cm] (cases) at (7.45,-0.675) {Case-study builders\\[-1pt]{\scriptsize\color{muted}refinery, UC, dispatch, logistics}};
+  \node[blk,minimum width=4.2cm] (api) at (12.4,-0.675) {Python API and CLI\\[-1pt]{\scriptsize\color{muted}\code{solve(model, method)}}};
+  % presolve
+  \node[blks,minimum width=6.6cm] (pre) at (4.4,-2.275) {Presolve and postsolve\\[-1pt]{\scriptsize singleton rows, fixed/empty columns, free singletons, duals}};
+  \node[blks,minimum width=6.8cm] (scal) at (11.5,-2.275) {Scaling $\hat A = RAC$\\[-1pt]{\scriptsize geometric mean + equilibration, powers of two}};
+  % engines
+  \node[blkn,minimum width=2.55cm,minimum height=1.25cm] (spx) at (2.1,-4.25) {Dual simplex\\[-1pt]{\scriptsize DSE, BFRT, Harris}\\[-2pt]{\scriptsize phase 1, cleanup}};
+  \node[blkn,minimum width=2.55cm,minimum height=1.25cm] (ipm) at (4.85,-4.25) {Interior point\\[-1pt]{\scriptsize Mehrotra PC}\\[-2pt]{\scriptsize normal equations}};
+  \node[blkn,minimum width=2.55cm,minimum height=1.25cm] (pdlp) at (7.6,-4.25) {PDLP\\[-1pt]{\scriptsize restarted PDHG}\\[-2pt]{\scriptsize CPU \textbar{} GPU}};
+  \node[blk,draw=igreen,fill=igreen,text=white,minimum width=2.9cm,minimum height=1.25cm] (bnb) at (11.0,-4.25) {Branch-and-bound\\[-1pt]{\scriptsize reliability branching}\\[-2pt]{\scriptsize propagation, GMI cuts, diving}};
+  \node[blk,draw=plum,fill=plum,text=white,minimum width=2.45cm,minimum height=1.25cm] (qp) at (14.0,-4.25) {QP interior\\[-1pt] point\\[-2pt]{\scriptsize quasi-definite KKT}};
+  \draw[->,igreen,line width=0.8pt,dashed] (bnb.north) -- ++(0,0.2) -| node[pos=0.25,above,lbl,text=igreen,yshift=-1pt]{node LPs: warm-started dual simplex} (spx.north);
+  % kernels, each under the engine that uses it
+  \foreach \k/\x/\t/\s in {lu/1.95/Sparse LU/Gilbert--Peierls + eta,
+                          nrm/4.35/Normal matrix/{$A\Theta A\T$, fixed pattern},
+                          chol/6.75/Cholesky/up-looking + etree,
+                          spmv/9.15/SpMV kernels/Numba \textbar{} CUDA,
+                          amd/11.55/Min. degree/mass elimination,
+                          ldl/13.95/$LDL\T$/quasi-definite}{
+    \node[blkm,minimum width=2.3cm,minimum height=1.0cm] (\k) at (\x,-7.0) {\t\\[-1pt]{\scriptsize\color{muted}\s}};
+  }
+  % engine -> kernel
+  \draw[flow] ([xshift=-1.5mm]spx.south) -- ([xshift=-1.5mm]spx.south |- lu.north);
+  \draw[flow] ([xshift=-3mm]ipm.south) -- ([xshift=-3mm]ipm.south |- nrm.north);
+  \draw[flow] ([xshift=4mm]ipm.south) -- ++(0,-0.55) -| (chol.north);
+  \draw[flow] ([xshift=4mm]pdlp.south) -- ++(0,-0.75) -| (spmv.north);
+  \draw[flow] (qp.south) -- (qp.south |- ldl.north);
+  \draw[flow,muted] (amd.east) -- (ldl.west);
+  \draw[flow,muted] (amd.south) -- ++(0,-0.18) -| (chol.south);
+  % input -> presolve -> engines
+  \draw[flow] (mps.south) -- (mps.south |- pre.north);
+  \draw[flow] (cases.south) -- (cases.south |- pre.north);
+  \draw[flow] (api.south) -- (api.south |- scal.north);
+  \draw[flow] (pre.east) -- (scal.west);
+\end{tikzpicture}
+\caption[System architecture]{System architecture. Everything in the four bands is \nirnay{} code.
+The dashed arrow shows that branch-and-bound solves its node LPs with the warm-started dual
+simplex. Minimum degree orders both the Cholesky and the $LDL\T$ factorisations.}
+\label{fig:arch}
+\end{figure}
+
+\begin{table}[tbp]
+\centering\small
+\caption[Solver modules]{Solver modules of \nirnay{} with their line counts (read from the
+source files by \file{gen\_data.py}). The core solver is \locCore{} lines; the case-study builders
+add \locCases{}.}
+\label{tab:modules}
+\begin{tabularx}{\linewidth}{@{}l r X@{}}
+\toprule
+Module (\file{nirnay/\dots}) & Lines & Role\\
+\midrule
+\rows{data/modules.tex}
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{The path of a solve}
+\Cref{fig:dataflow} follows one LP or MILP from file to answer. Each transformation on the way
+in has an exact inverse on the way out, so the returned $x$, $y$ and $z$ satisfy the optimality
+conditions \eqref{eq:kkt-lp} of the model in the file, not only those of the scaled, reduced
+model the engine saw.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[node distance=5mm and 5mm]
+  \node[term] (file) {MPS file};
+  \node[blk,right=of file] (read) {\code{read\_mps}};
+  \node[blk,right=of read] (model) {\code{Model}\\[-1pt]{\scriptsize$c,A,r^l,r^u,\ell,u,\mathcal I,Q$}};
+  \node[blks,right=of model] (pre) {presolve\\[-1pt]{\scriptsize stack of reductions}};
+  \node[blks,right=of pre] (scale) {scale\\[-1pt]{\scriptsize$R,C=2^k$}};
+  \node[blkn,below=11mm of scale,minimum width=2.6cm] (eng) {engine\\[-1pt]{\scriptsize simplex \textbar{} IPM \textbar{} PDLP \textbar{} B\&B}};
+  \node[blks,left=of eng] (unscale) {unscale\\[-1pt]{\scriptsize$x=C\hat x,\ y=R\hat y$}};
+  \node[blks,left=of unscale] (post) {postsolve\\[-1pt]{\scriptsize undo in reverse}};
+  \node[term,fill=igreen,draw=igreen,left=of post] (res) {\code{Result}: $x,y,z$};
+  \draw[flow] (file) -- (read);
+  \draw[flow] (read) -- (model);
+  \draw[flow] (model) -- (pre);
+  \draw[flow] (pre) -- (scale);
+  \draw[flow] (scale) -- (eng);
+  \draw[flow] (eng) -- (unscale);
+  \draw[flow] (unscale) -- (post);
+  \draw[flow] (post) -- (res);
+  % verification branch
+  \node[blkg,below=9mm of res] (cmp) {compare: status, $\frac{|f-f^\star|}{\max(1,|f^\star|)}$,\\[-1pt]{\scriptsize row/bound violation, dual feasibility}};
+  \node[blkm,right=8mm of cmp] (ref) {reference solver in its own process\\[-1pt]{\scriptsize HiGHS (LP, MILP) \textbar{} Clarabel (QP), own parser}};
+  \draw[flow,muted] (file.west) -- ++(-0.3,0) |- ([yshift=-1.5mm]ref.south) -- (ref.south);
+  \draw[flow,muted] (res.south) -- (cmp.north);
+  \draw[flow,muted] (ref) -- (cmp);
+  \begin{scope}[on background layer]
+    \node[fit=(pre)(scale)(eng)(unscale)(post),draw=saffron!60,dashed,rounded corners=3pt,inner sep=5pt,
+          label={[lbl,anchor=south east]north east:inside \code{nirnay.solve}}] {};
+  \end{scope}
+\end{tikzpicture}
+\caption[Data flow of a solve]{Data flow of a solve. The upper row reduces and scales the model.
+The engine solves it, and the lower row maps the solution back. The benchmark harness (bottom)
+re-solves the same file with a reference solver in a separate process and checks the answer.}
+\label{fig:dataflow}
+\end{figure}
+
+\subsection{Input: the MPS/QPS reader}
+\file{nirnay/io/mps.py} reads fixed and free MPS, gzip-compressed files, \code{OBJSENSE},
+integer \code{MARKER} blocks, \code{RANGES}, the bound types \code{UP LO FX FR MI PL BV LI UI},
+an objective constant given as the RHS of the objective row, and the QP sections \code{QUADOBJ}
+(one triangle), \code{QMATRIX} and \code{QSECTION} (both triangles). It follows the conventions the
+benchmark libraries assume: an integer column in a \code{MARKER} block without bounds gets
+$[0,\infty)$; \code{UP} with a negative value on a column whose lower bound is still $0$ sets
+the lower bound to $-\infty$; \code{RANGES} on an equality row extend upward for $R>0$ and
+downward for $R<0$; the objective constant is minus the RHS of the objective row. Fixed-format
+files whose names contain spaces (Netlib's \code{forplan}) are detected and parsed by column
+position. The earliest interior-point sweep failed to read \code{forplan} and \code{standgub}
+(\cref{tab:fixes-ipm}); both read correctly now. A writer (\file{io/mps\_write.py}) emits
+free MPS. Read, write and re-read reproduce the arrays of the benchmark files, and HiGHS reads the
+original and the written file into the same model (\cref{sec:verification}).
+
+\subsection{Scaling}\label{sec:scaling}
+Industrial models mix units (tonnes, kilolitres, rupees, percentages), so the coefficients of
+$A$ span many orders of magnitude and every factorisation loses digits to that spread.
+\file{presolve/scaling.py} computes diagonal $R$ and $C$ and solves the scaled problem with
+$\hat A=RAC$, $\hat c=Cc$, $\hat r = R r$ and $\hat\ell = C^{-1}\ell$, $\hat u = C^{-1}u$, in two
+stages~\cite{elble2012}:
+\begin{enumerate}
+  \item \textbf{Geometric-mean passes.} Divide each row, then each column, by
+        $\sqrt{\max_j|\hat a_{ij}|\cdot\min_j|\hat a_{ij}|}$. Stop after 8 passes, or earlier once
+        a pass reduces the overall spread $\max|\hat a|/\min|\hat a|$ by less than 10\%. Entries
+        below $10^{-12}$ of the largest in their row or column are left out of the minimum: they
+        carry no information in double precision, but a geometric mean would let them dominate.
+        The QP \code{KSIP} has an entry of order $10^{-30}$ next to entries of order~1, and scaling by
+        it ruined every other entry of its line.
+  \item \textbf{Equilibration.} A final column pass makes the largest entry of every column
+        exactly~1.
+\end{enumerate}
+Each factor is then rounded to the nearest power of two, $R_i \leftarrow 2^{\operatorname{round}(\log_2 R_i)}$.
+Multiplying by a power of two changes only the floating-point exponent, so scaling adds no rounding
+error of its own, and unscaling ($x=C\hat x$, $y=R\hat y$, $z=C^{-1}\hat z$) returns exactly the
+numbers the engine computed. PDLP uses its own preconditioner (Ruiz and Pock--Chambolle,
+\cref{sec:pdlp}), because the convergence rate of a first-order method depends on the conditioning
+of $A$ in a different way.

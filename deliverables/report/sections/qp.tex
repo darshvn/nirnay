@@ -1,0 +1,70 @@
+% Section 10: QP interior point.
+\section{The interior-point method for convex QP}\label{sec:qp}
+
+With a quadratic objective the normal equations $B(Q+D)^{-1}B\T$ lose their sparsity, because
+$(Q+D)^{-1}$ is dense in general. \file{qp/ipm.py} therefore solves the \emph{augmented} system at
+every Newton step, factorised by the quasi-definite $LDL\T$ of \cref{sec:ldl}. The outer iteration
+is Mehrotra's predictor--corrector, as for LP~\cite{mehrotra1992,wright1997}, in the form Gertz and
+Wright give for QP~\cite{gertz2003}. The regularisation follows Friedlander and
+Orban~\cite{friedlander2012} and Altman and Gondzio~\cite{altman1999}.
+
+\subsection{The regularised augmented system}
+With the bounded standard form \eqref{eq:ipm-form} and $D = X^{-1}Z + W^{-1}S$ (zero on free
+variables), the Newton system reduces to
+\begin{equation}\label{eq:aug}
+  \begin{bmatrix} -(Q+D+\rho I) & B\T\\ B & \delta I\end{bmatrix}
+  \begin{bmatrix}\Delta x\\ \Delta y\end{bmatrix} =
+  \begin{bmatrix}\hat r\\ r_b\end{bmatrix},\qquad
+  \hat r = r_c - X^{-1}r_{xz} + W^{-1}(r_{ws}-Sr_u),
+\end{equation}
+where now $r_c = c+Qx-B\T y-z+s$. The primal regularisation is $\rho=10^{-10}$ ($10^{-8}$ on free
+variables) and the dual regularisation $\delta=10^{-10}$. The matrix is quasi-definite
+(\cref{fig:kkt}), so it has an $LDL\T$ factorisation for the minimum-degree order. The pattern of
+$K$ is fixed: the triplets of $Q$, the diagonal, $B$ and $B\T$ are sorted once, and each iteration
+only sums new values into the fixed slots.
+
+\paragraph{Iterative refinement against the unregularised matrix}
+The regularisation perturbs the system being solved. Each solve is therefore followed by up to three
+refinement steps in which the residual is computed with the \emph{true} matrix ($\rho=\delta=0$, only
+the free-variable term kept) and corrected with the regularised factor:
+\begin{equation}\label{eq:refine}
+  v \leftarrow v + K_{\text{reg}}^{-1}\bigl(\text{rhs}-K_{\text{true}}\,v\bigr),
+\end{equation}
+stopping when $\|\text{rhs}-K_{\text{true}}v\|_\infty\le10^{-13}(1+\|\text{rhs}\|_\infty)$. This removes the
+effect of $\rho$ and $\delta$ from the direction, while the factorisation keeps the stability they
+bring~\cite{friedlander2012}.
+
+\paragraph{Retry with a regularisation boost}
+A direction is accepted only if it is finite \emph{and} the refined residual of the augmented system
+is below $10^{-6}$ relative to the right-hand side. A factorisation that lost too much to pivot
+flooring can return a direction that is finite but wrong: on \code{QRECIPE} it had entries of order
+$10^{46}$. If the check fails, the factorisation is repeated with $\rho$ and $\delta$ multiplied by
+$10^2$, up to five attempts in all. Only if every attempt fails does the method stop with
+\code{numerical\_error}.
+
+\paragraph{Starting point}
+The starting point is Mehrotra's heuristic as for LP, with one change. Every component of $x,z,w,s$
+is floored at $\max(1,\|b\|_\infty/10^{12})$. When the heuristic lands on a point with tiny
+complementarity but large residuals (on \code{YAO}, $\mu\approx2\cdot10^{-6}$ against a dual
+infeasibility of $0.5$), the iterates hug the boundary and crawl, and the floor keeps the start well
+inside the cone.
+
+\paragraph{Coupled step length}
+In LP the primal and dual steps are independent. In QP they are coupled through $Q\Delta x$ in the
+dual residual, so with $Q\ne0$ the method takes one common step $\alpha=\min(\alpha_p,\alpha_d)$ by
+default, again at the fraction $0.9995$ of the distance to the boundary.
+
+\paragraph{Termination}
+The residual measures, the loose-tolerance acceptance on stalling and the infeasibility heuristics are
+those of the LP method (\cref{sec:ipm}), with the primal objective $c\T x+\frac12x\T Qx$ and the dual
+objective $b\T y-U\T s-\frac12 x\T Qx$ in the gap. The gap is measured relative to
+$1+\min(|f|,|f+c_0|)$, that is, also against the objective the user sees, constant included. With a
+large constant and an optimum near zero (\code{HS268}, \code{GOULDQP3}), a gap relative to $f$ alone
+was far too loose, and points with objective errors near $10^{-5}$ were accepted. Reduced costs are
+mapped back as $z=c+Qx-A\T y$ on the original model.
+
+These three changes came from the failure analysis of the first Maros--Mészáros sweep
+(\cref{sec:results}). \ifnum\haveQpVone=1 With them, and with the corrected reference of
+\cref{sec:verification}, the second sweep solves \nQp{} of \nQpTot{} problems against \nQpVone{} of
+\nQpVoneTot{} in the first. The two effects cannot be separated: part of the gain comes from the
+reference.\else The sweep that measures their effect is \file{maros\_qpipm\_v2.csv}.\fi

@@ -1,0 +1,44 @@
+% Abstract and the at-a-glance panel.
+\section*{Summary}
+\addcontentsline{toc}{section}{Summary}
+
+Problem statement SIH26119 asks for an optimisation solver that India owns: one that reads the
+models refinery planners already write, solves linear, mixed-integer and quadratic programmes,
+uses GPUs where they help, and is not built on Xpress, CPLEX or any other existing solver library.
+\nirnay{} is our answer. Every algorithm and every factorisation in it is implemented in the
+repository: an MPS/QPS reader, presolve with exact primal and dual postsolve, scaling, a
+Gilbert--Peierls sparse LU with eta updates and basis repair, an up-looking sparse Cholesky, a
+quasi-definite $LDL\T$, a minimum-degree ordering, a bounded dual simplex, a Mehrotra
+interior-point method, a restarted primal--dual hybrid gradient method (PDLP) on CPU and GPU, a
+branch-and-bound code with reliability branching, propagation, heuristics and Gomory cuts, and a
+QP interior-point method. HiGHS and Clarabel appear only in the benchmark harness, as independent
+references that check every answer.
+
+This report describes each algorithm as the code implements it, with its equations and
+pseudocode; the numerical failures we hit and how each fix works; how answers are verified; and
+the benchmark results, failures included. \Cref{sec:results} states plainly where \nirnay{} is behind:
+it is slower than HiGHS, and it proves fewer MIPLIB instances optimal.
+
+\begin{keybox}[At a glance (generated from \file{results/})]
+\centering
+\stat{\nSpx/\nSpxTot}{Netlib LPs solved by the dual simplex (objective within $10^{-6}$ of HiGHS)}\hfill
+\stat{\nIpm/\nIpmTot}{Netlib LPs solved by the interior-point method}\hfill
+\stat{\nQp/\nQpTot}{Maros--Mészáros convex QPs solved (within $10^{-6}$ of Clarabel)}\hfill
+\stat{\nMip/\nMipTot}{MIPLIB\,3 instances proven optimal in \tlMip\,s\ifnum\nMipTot<\nMipList{} (sweep in progress)\fi}
+\par\medskip
+\stat{\ratioSpx$\times$}{dual simplex time vs.\ HiGHS, shifted geometric mean (shift \shiftA\,s)}\hfill
+\stat{\gmrSpx$\times$}{dual simplex vs.\ HiGHS, geometric mean of per-instance ratios}\hfill
+\stat{\largeSpeedMax$\times$}{largest GPU-over-CPU speed-up of our PDLP on the large LPs\ifnum\nLarge<\nLargeList{} run so far\fi}\hfill
+\stat{\nDualBad}{dual-feasibility failures in \nDualOk{} Netlib solutions checked after postsolve}
+\end{keybox}
+
+\begin{honestbox}[Where we stand]
+\nirnay{} is correct on the standard LP and QP test sets and substantially slower than a mature
+open-source solver: the dual simplex takes \ratioSpx{} times as long as HiGHS in shifted geometric
+mean over the \nSpxTot{} Netlib problems (\ratioSpxTenShift{} times with a \shiftB\,s shift, and
+\gmrSpx{} times as the geometric mean of per-instance ratios). On MIPLIB\,3 with a \tlMip\,s limit,
+branch-and-bound proves \nMip{} of the \nMipTot{} instances\ifnum\nMipTot<\nMipList{} run so far\fi{} optimal, against
+\nMipRefOpt{} for HiGHS under the same limit. The engines are compiled with Numba inside the
+inner loops, but the iteration drivers are Python, and the MIP code lacks most of the presolve,
+cut families and heuristics that close gaps in production solvers.
+\end{honestbox}

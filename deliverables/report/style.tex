@@ -1,0 +1,116 @@
+% Layout, colours and drawing styles for the NIRNAY report.
+
+% ------------------------------------------------------------------ headings
+\titleformat{\section}{\sffamily\Large\bfseries\color{navy}}{\color{saffron}\thesection}{0.8em}{}
+\titleformat{\subsection}{\sffamily\large\bfseries\color{navy}}{\color{saffron}\thesubsection}{0.7em}{}
+\titleformat{\subsubsection}{\sffamily\normalsize\bfseries\color{navy}}{\thesubsubsection}{0.6em}{}
+\titleformat{\paragraph}[runin]{\sffamily\normalsize\bfseries\color{navy}}{}{0pt}{}[.]
+\titlespacing*{\section}{0pt}{3.2ex plus 1ex minus .2ex}{1.6ex plus .2ex}
+\titlespacing*{\subsection}{0pt}{2.6ex plus 1ex minus .2ex}{1.1ex plus .2ex}
+\titlespacing*{\paragraph}{0pt}{1.4ex plus .5ex minus .2ex}{0.8em}
+% sections run on (no \sectionbreak), which keeps floats close to their text
+
+% ------------------------------------------------------------------ header and footer
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{rule}\leaders\hrule height \headrulewidth\hfill}}
+\fancyhead[L]{\sffamily\footnotesize\color{muted}NIRNAY \textperiodcentered{} Technical report}
+\fancyhead[R]{\sffamily\footnotesize\color{muted}SIH26119 \textperiodcentered{} Team ZeroCloud}
+\fancyfoot[C]{\sffamily\footnotesize\color{muted}\thepage}
+\fancypagestyle{plain}{\fancyhf{}\renewcommand{\headrulewidth}{0pt}\fancyfoot[C]{\sffamily\footnotesize\color{muted}\thepage}}
+
+% ------------------------------------------------------------------ captions, lists, spacing
+\captionsetup{font=small,labelfont={bf,sf,color=navy},format=hang,margin=4pt}
+\setlength{\emergencystretch}{3em}
+\setlist{itemsep=2pt,topsep=4pt,parsep=0pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em plus 0.15em}
+\renewcommand{\arraystretch}{1.12}
+\setlength{\LTpre}{6pt}
+\setlength{\LTpost}{4pt}
+
+% generated table rows: the primitive \input is expandable, so \bottomrule after it still follows a \cr
+\makeatletter
+\newcommand{\rows}[1]{\@@input #1 }
+\makeatother
+
+% ------------------------------------------------------------------ maths shorthands
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\T}{^{\mathsf{T}}}
+\newcommand{\mT}{^{-\mathsf{T}}}
+\newcommand{\diag}{\operatorname{diag}}
+\newcommand{\proj}{\operatorname{proj}}
+\newcommand{\nnz}{\operatorname{nnz}}
+\newcommand{\sign}{\operatorname{sign}}
+\newcommand{\fr}{\operatorname{frac}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\file}[1]{\texttt{\small #1}}
+\newcommand{\nirnay}{\textsc{Nirnay}}
+\DeclareMathOperator{\clip}{clip}
+
+% ------------------------------------------------------------------ boxes
+\tcbset{
+  nbox/.style={enhanced,colback=card,colframe=navy,boxrule=0.6pt,arc=2pt,left=8pt,right=8pt,top=6pt,bottom=6pt,
+    fonttitle=\sffamily\bfseries,coltitle=white,colbacktitle=navy},
+  lesson/.style={enhanced,colback=saffron!6,colframe=saffron,boxrule=0.6pt,arc=2pt,left=8pt,right=8pt,top=5pt,bottom=5pt,
+    fonttitle=\sffamily\bfseries,coltitle=white,colbacktitle=saffron},
+  honest/.style={enhanced,colback=igreen!5,colframe=igreen,boxrule=0.6pt,arc=2pt,left=8pt,right=8pt,top=5pt,bottom=5pt,
+    fonttitle=\sffamily\bfseries,coltitle=white,colbacktitle=igreen},
+}
+\newtcolorbox{keybox}[1][]{nbox,title={#1}}
+\newtcolorbox{lessonbox}[1][]{lesson,title={#1}}
+\newtcolorbox{honestbox}[1][]{honest,title={#1}}
+
+% a "big number" tile for the at-a-glance panel
+\newcommand{\stat}[2]{\begin{minipage}[t]{0.23\linewidth}\centering
+  {\sffamily\bfseries\LARGE\color{saffron}#1}\\[1pt]{\sffamily\scriptsize\color{ink}#2}\end{minipage}}
+
+% ------------------------------------------------------------------ listings
+\lstset{basicstyle=\ttfamily\small,columns=fullflexible,keepspaces=true,
+  keywordstyle=\color{navy}\bfseries,commentstyle=\color{muted}\itshape,stringstyle=\color{igreen},
+  frame=single,rulecolor=\color{rule},backgroundcolor=\color{card},xleftmargin=6pt,xrightmargin=6pt,
+  framesep=4pt,breaklines=true,showstringspaces=false}
+
+% ------------------------------------------------------------------ algorithm2e
+\SetAlgoSkip{medskip}
+\SetKwComment{Comment}{\color{muted}$\triangleright$\ }{}
+\SetCommentSty{textit}
+\SetKwInOut{Input}{input}
+\SetKwInOut{Output}{output}
+\SetAlFnt{\small}
+\SetAlCapFnt{\small\sffamily\bfseries}
+\SetAlCapNameFnt{\small}
+\renewcommand{\listalgorithmcfname}{List of Algorithms}
+
+% ------------------------------------------------------------------ TikZ styles
+\tikzset{
+  >={Stealth[length=2.2mm]},
+  blk/.style={draw=navy,fill=white,rounded corners=2pt,line width=0.6pt,align=center,
+    font=\sffamily\footnotesize,minimum height=7mm,inner sep=3pt},
+  blkn/.style={blk,fill=navy,text=white},
+  blks/.style={blk,draw=saffron,fill=saffron!10},
+  blkg/.style={blk,draw=igreen,fill=igreen!8},
+  blkm/.style={blk,draw=muted,fill=card},
+  dec/.style={diamond,aspect=2.1,draw=saffron,fill=saffron!10,line width=0.6pt,align=center,
+    font=\sffamily\scriptsize,inner sep=1pt},
+  term/.style={rounded rectangle,draw=navy,fill=navy,text=white,font=\sffamily\footnotesize\bfseries,
+    minimum height=6.5mm,inner xsep=6pt},
+  flow/.style={->,draw=ink,line width=0.6pt},
+  lbl/.style={font=\sffamily\scriptsize,color=muted},
+  layer/.style={draw=rule,fill=card,rounded corners=3pt,line width=0.5pt},
+}
+
+% ------------------------------------------------------------------ PGFPlots styles
+\pgfplotsset{
+  every axis/.append style={font=\sffamily\footnotesize, tick label style={font=\sffamily\scriptsize},
+    label style={font=\sffamily\footnotesize}, legend style={font=\sffamily\scriptsize,draw=rule,fill=white,fill opacity=0.9,text opacity=1},
+    axis line style={draw=muted}, tick style={draw=muted}, major grid style={draw=rule,line width=0.3pt},
+    minor grid style={draw=rule!50,line width=0.2pt}},
+  nspx/.style={color=saffron,line width=1.1pt},
+  nipm/.style={color=sky,line width=1.1pt},
+  nhighs/.style={color=navy,line width=1.1pt,dashed},
+  nbest/.style={color=igreen,line width=1.1pt,dotted},
+  npdlp/.style={color=plum,line width=1.1pt},
+}
