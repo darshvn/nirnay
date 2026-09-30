@@ -1,0 +1,214 @@
+{
+  "voice": {
+    "id": "iP95p4xoKVk53GoZ742B",
+    "name": "Chris",
+    "model": "eleven_v4",
+    "settings": {
+      "stability": 0.5,
+      "similarity_boost": 0.8,
+      "style": 0.15,
+      "use_speaker_boost": true,
+      "speed": 1.0
+    }
+  },
+  "say": {
+    "NIRNAY": "Neer-nay",
+    "HiGHS": "Highs",
+    "BS-VI": "B S six",
+    "MRPL": "M R P L",
+    "MIPLIB": "mip lib",
+    "LPs": "L Ps",
+    "LDL-transpose": "L D L transpose"
+  },
+  "videos": {
+    "c1_hook": {
+      "lines": [
+        {
+          "id": "h1",
+          "min": 0.6,
+          "text": "Every barrel a refinery processes is decided by an optimisation solver: which crudes to buy, how to blend them, when to run each unit.",
+          "at": 0.6
+        },
+        {
+          "id": "h2",
+          "min": 0.0,
+          "text": "In India, those solvers are foreign, closed, and licensed by the seat.",
+          "at": 9.2
+        },
+        {
+          "id": "h3",
+          "min": 0.0,
+          "text": "So we built one. This is NIRNAY.",
+          "at": 13.86
+        }
+      ],
+      "duration": 18.3
+    },
+    "c2_refinery": {
+      "lines": [
+        {
+          "id": "r1",
+          "min": 0.4,
+          "text": "Here's a refinery plan built from public Indian data: MRPL-sized distillation units, BS-VI fuel specifications, this year's prices.",
+          "at": 0.4
+        },
+        {
+          "id": "r2",
+          "min": 0.0,
+          "text": "Press solve.",
+          "at": 10.94
+        },
+        {
+          "id": "r3",
+          "min": 0.0,
+          "text": "The dual simplex drives the infeasibility to zero, and the plan is optimal in milliseconds: the crude slate, what to make, and what every extra unit of capacity is worth.",
+          "at": 12.4
+        },
+        {
+          "id": "r4",
+          "min": 0.0,
+          "text": "Then we ask HiGHS, an independent solver, to check. Same answer.",
+          "at": 23.14
+        }
+      ],
+      "duration": 29.4
+    },
+    "c3_plan": {
+      "lines": [
+        {
+          "id": "p1",
+          "min": 0.4,
+          "text": "Real plans are whole decisions: how many crude parcels each month, which mode the cracker runs in.",
+          "at": 0.4
+        },
+        {
+          "id": "p2",
+          "min": 0.0,
+          "text": "Branch-and-bound closes the gap between the best plan found and the best still possible, and proves that nothing better exists.",
+          "at": 7.0
+        }
+      ],
+      "duration": 17.5
+    },
+    "c4_unload": {
+      "lines": [
+        {
+          "id": "u1",
+          "min": 0.4,
+          "text": "This one is a published refinery benchmark: tankers, storage tanks, charging tanks and the distillation unit.",
+          "at": 0.4
+        },
+        {
+          "id": "u2",
+          "min": 0.0,
+          "text": "NIRNAY reproduces the published optimum exactly, and draws the schedule.",
+          "at": 7.64
+        }
+      ],
+      "duration": 14.4
+    },
+    "c5_gpu": {
+      "lines": [
+        {
+          "id": "g1",
+          "min": 0.4,
+          "text": "For very large models, there's a GPU engine.",
+          "at": 0.4
+        },
+        {
+          "id": "g2",
+          "min": 0.0,
+          "text": "One and a half million nonzeros, solved in about a second on a laptop graphics card. The same laptop running HiGHS takes over four minutes.",
+          "at": 3.8
+        }
+      ],
+      "duration": 15.3
+    },
+    "c5b_arch": {
+      "duration": 31.2,
+      "lines": [
+        {
+          "id": "a1",
+          "min": 0.5,
+          "text": "Under the hood, there are three LP engines, chosen by the shape of the problem.",
+          "at": 0.5
+        },
+        {
+          "id": "a2",
+          "min": 0.0,
+          "text": "The dual simplex, for exact answers and the warm starts that branch-and-bound needs. An interior-point method, for large sparse models. And PDLP, when a model is big enough for the GPU to pay off.",
+          "at": 5.56
+        },
+        {
+          "id": "a3",
+          "min": 0.0,
+          "text": "Branch-and-bound and a quadratic solver sit on top. And every factorisation underneath, the sparse LU, the Cholesky, the LDL-transpose, we wrote ourselves.",
+          "at": 19.22
+        }
+      ]
+    },
+    "c6_proof": {
+      "lines": [
+        {
+          "id": "f1",
+          "min": 0.4,
+          "text": "None of this is a projection.",
+          "at": 0.4
+        },
+        {
+          "id": "f2",
+          "min": 0.0,
+          "text": "Ninety of ninety classic LPs. Thirty-three MIPLIB problems proven optimal, with no wrong answers. A hundred and twenty-one of a hundred and thirty-eight quadratic programs. Every result re-checked by an independent solver.",
+          "at": 2.34
+        },
+        {
+          "id": "f3",
+          "min": 0.0,
+          "text": "Checking that carefully even caught mistakes in the reference solvers themselves.",
+          "at": 16.68
+        },
+        {
+          "id": "f4",
+          "min": 0.0,
+          "text": "We're slower than HiGHS today, and we say so.",
+          "at": 20.92
+        },
+        {
+          "id": "f5",
+          "min": 0.0,
+          "text": "And there's no solver library inside. Every factorisation, every pivot, is our own code.",
+          "at": 23.6
+        }
+      ],
+      "duration": 31.4
+    },
+    "c6b_next": {
+      "duration": 24.0,
+      "lines": [
+        {
+          "id": "n1",
+          "min": 0.5,
+          "text": "Next, we close the speed gap: hyper-sparse linear algebra and a better LU factorisation, more cutting planes for the hardest integer problems, and a live MRPL planning model at the finale.",
+          "at": 0.5
+        },
+        {
+          "id": "n2",
+          "min": 0.0,
+          "text": "For MRPL, it means planning software it owns. No per-seat licence. Code it can audit. And shadow prices its planners can trust.",
+          "at": 13.1
+        }
+      ]
+    },
+    "c7_end": {
+      "lines": [
+        {
+          "id": "e1",
+          "min": 0.5,
+          "text": "NIRNAY. Built for Smart India Hackathon twenty twenty-six, by Team ZeroCloud. The code is open.",
+          "at": 0.5
+        }
+      ],
+      "duration": 9.8
+    }
+  }
+}

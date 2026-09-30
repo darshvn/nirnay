@@ -1,0 +1,123 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NIRNAY Studio</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <div>
+        <div class="name">NIRNAY <em>Studio</em></div>
+        <div class="tag">Indigenous LP · MILP · QP solver · SIH26119</div>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="solve" role="tab">Solve</button>
+      <button class="tab" data-view="bench" role="tab">Benchmarks</button>
+      <button class="tab" data-view="source" role="tab">Source</button>
+    </nav>
+    <div class="pill-sovereign"><span class="dot"></span>No solver library inside</div>
+  </header>
+
+  <main>
+    <!-- ============================== SOLVE ============================== -->
+    <section class="view" id="view-solve">
+      <aside class="shelf" id="shelf"><div class="grp">MRPL scenario</div><button class="item" data-key="refinery"><div class="t"><span class="kind LP">LP</span>Refinery crude plan</div><div class="s">Crude selection, CDU cuts, FCC and reformer, BS-VI blending</div></button><button class="item active" data-key="plan4"><div class="t"><span class="kind MILP">MILP</span>4-month refinery plan</div><div class="s">Crude parcels per month, FCC mode changeovers, product inventories</div></button><button class="item" data-key="unload"><div class="t"><span class="kind MILP">MILP</span>Crude unloading schedule</div><div class="s">Vessels → storage tanks → charging tanks → CDU, sulphur specs</div></button><div class="grp">Scale</div><button class="item" data-key="datt256"><div class="t"><span class="kind LP">LP</span>datt256 · large LP</div><div class="s">11,077 rows · 262,144 columns · 1.5 M nonzeros (MIPLIB 2017 relaxation)</div></button><div class="grp">Benchmarks</div><button class="item" data-key="pilot"><div class="t"><span class="kind LP">LP</span>Netlib pilot</div><div class="s">Notoriously ill-conditioned economic planning model</div></button><button class="item" data-key="p0201"><div class="t"><span class="kind MILP">MILP</span>MIPLIB p0201</div><div class="s">201 binary variables, classic MIPLIB 3 instance</div></button><button class="item" data-key="qship"><div class="t"><span class="kind QP">QP</span>Maros–Mészáros QSHIP04S</div><div class="s">Convex quadratic program</div></button></aside>
+
+      <div class="work">
+        <div class="card model-card" id="model-card">
+          <div class="mc-left">
+            <div class="mc-kicker"><span class="kind MILP" id="mc-kind">MILP</span><span id="mc-group">MRPL scenario</span></div>
+            <h1 id="mc-title">4-month refinery plan</h1>
+            <p id="mc-sub" class="mc-sub">Crude parcels per month, FCC mode changeovers, product inventories</p>
+            <p id="mc-src" class="mc-src">As the crude plan, plus PPAC monthly demand and MRPL storage</p>
+          </div>
+          <div class="mc-stats" id="mc-stats"><div class="stat"><div class="n">463</div><div class="l">Rows</div></div><div class="stat"><div class="n">859</div><div class="l">Columns</div></div><div class="stat"><div class="n">3,233</div><div class="l">Nonzeros</div></div><div class="stat"><div class="n">75</div><div class="l">Integers</div></div></div>
+        </div>
+
+        <div class="runbar">
+          <div class="engines" id="engines"><button class="eng active" data-eng="bnb">Branch-and-bound</button></div>
+          <button class="solve" id="solve-btn"><span class="solve-ic"></span><span id="solve-label">Solve</span></button>
+        </div>
+
+        <div class="live">
+          <div class="card chart-card">
+            <div class="card-h"><span id="chart-title">Branch-and-bound: margin</span><span class="legend" id="chart-legend"><span><i style="background:var(--green)"></i>Best plan found</span><span><i style="background:var(--saffron)"></i>Best still possible</span></span></div>
+            <svg id="chart" viewBox="0 0 640 260" preserveAspectRatio="none"><line x1="58" x2="622" y1="230" y2="230" stroke="#243052" stroke-width="1"></line><text x="50" y="234" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">96.72k</text><line x1="58" x2="622" y1="176" y2="176" stroke="#243052" stroke-width="1"></line><text x="50" y="180" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">96.75k</text><line x1="58" x2="622" y1="122" y2="122" stroke="#243052" stroke-width="1"></line><text x="50" y="126" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">96.78k</text><line x1="58" x2="622" y1="68" y2="68" stroke="#243052" stroke-width="1"></line><text x="50" y="72" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">96.81k</text><line x1="58" x2="622" y1="14" y2="14" stroke="#243052" stroke-width="1"></line><text x="50" y="18" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">96.84k</text><text x="622" y="252" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">6,244 nodes</text><text x="58" y="252" fill="#7C88A6" font-size="11" font-family="Inter">0</text><defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F28C38" stop-opacity=".28"></stop><stop offset="1" stop-color="#F28C38" stop-opacity="0"></stop></linearGradient></defs><path d="M58.0,230.0H58.0V222.6H60.3V222.6H62.5V222.6H64.8V222.6H71.5V222.6H73.8V222.6H78.3V222.6H85.1V222.6H87.4V222.6H89.6V222.6H98.6V222.6H103.2V222.6H105.4V222.6H107.7V222.6H109.9V222.6H114.5V222.6H116.7V222.6H119.0V222.6H121.2V222.6H123.5V222.6H128.0V222.6H132.5V222.6H134.8V222.6H139.3V222.6H141.6V222.6H143.8V222.6H146.1V222.6H150.6V222.6H164.1V222.6H168.7V222.6H173.2V222.6H179.9V222.6H182.2V222.6H186.7V222.6H198.0V222.6H204.8V222.6H209.3V222.6H211.6V222.6H216.1V222.6H227.4V222.6H229.6V222.6H234.1V222.6H238.7V196.3H238.7V196.3H245.4V196.3H252.2V196.3H256.7V196.3H259.0V196.3H265.8V196.3H268.0V196.3H270.3V196.3H272.5V196.3H277.0V196.3H279.3V196.3H286.1V196.3H288.3V196.3H292.8V196.3H299.6V196.3H304.1V196.3H326.7V196.3H331.2V196.3H335.8V196.3H338.0V196.3H340.3V196.3H342.5V196.3H349.3V196.3H356.1V196.3H358.3V196.3H367.4V196.3H369.6V196.3H371.9V196.3H378.7V196.3H380.9V196.3H383.2V196.3H399.0V196.3H403.5V196.3H405.8V196.3H410.3V196.3H414.8V196.3H419.3V196.3H423.8V196.3H426.1V196.3H430.6V196.3H432.9V196.3H437.4V196.3H439.6V196.3H446.4V196.3H448.7V196.3H453.2V196.3H475.8V196.3H480.3V196.3H482.5V196.3H489.3V196.3H491.6V196.3H493.8V196.3H498.3V196.3H500.6V196.3H505.1V196.3H507.4V196.3H530.0V196.3H532.2V196.3H534.5V196.3H539.0V196.3H548.0V196.3H552.5V196.3H554.8V196.3H559.3V196.3H563.8V196.3H566.1V196.3H575.1V196.3H577.4V196.3H581.9V160.0H584.2V160.0H588.7V160.0H590.9V160.0H595.4V160.0H597.7V160.0H615.8V160.0H618.0V160.0H622.0V118.3H622.0" fill="none" stroke="var(--green)" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round" class="series s-a"></path><circle cx="622" cy="118.33456527898686" r="4" fill="var(--green)" class="dot d-a"></circle><path d="M58.0,14.0H58.0V14.0H58.0V14.0H60.3V14.0H62.5V14.0H64.8V14.0H71.5V14.0H73.8V14.0H78.3V14.0H85.1V14.0H87.4V14.0H89.6V14.0H98.6V14.0H103.2V14.0H105.4V14.0H107.7V14.0H109.9V14.0H114.5V14.0H116.7V14.0H119.0V14.0H121.2V14.0H123.5V14.0H128.0V14.0H132.5V14.0H134.8V14.0H139.3V14.0H141.6V14.0H143.8V14.0H146.1V14.0H150.6V14.5H164.1V21.7H168.7V25.5H173.2V27.0H179.9V29.6H182.2V30.2H186.7V33.4H198.0V43.6H204.8V46.9H209.3V47.5H211.6V48.0H216.1V48.0H227.4V50.4H229.6V50.6H234.1V53.0H238.7V53.0H238.7V55.3H245.4V55.6H252.2V56.7H256.7V57.7H259.0V58.4H265.8V60.9H268.0V61.0H270.3V61.3H272.5V61.3H277.0V61.3H279.3V61.3H286.1V61.3H288.3V61.3H292.8V64.0H299.6V66.3H304.1V67.6H326.7V76.1H331.2V78.3H335.8V79.5H338.0V79.7H340.3V79.8H342.5V80.2H349.3V82.5H356.1V84.5H358.3V84.5H367.4V84.5H369.6V84.5H371.9V84.5H378.7V84.5H380.9V84.5H383.2V84.5H399.0V85.5H403.5V86.7H405.8V87.5H410.3V88.3H414.8V89.2H419.3V89.7H423.8V90.4H426.1V90.6H430.6V90.6H432.9V90.6H437.4V90.8H439.6V90.8H446.4V90.9H448.7V91.6H453.2V92.0H475.8V95.3H480.3V95.9H482.5V95.9H489.3V97.6H491.6V98.3H493.8V98.7H498.3V99.3H500.6V99.3H505.1V99.3H507.4V99.6H530.0V101.8H532.2V102.1H534.5V102.7H539.0V103.2H548.0V105.9H552.5V106.3H554.8V106.6H559.3V107.1H563.8V107.6H566.1V107.8H575.1V109.8H577.4V110.1H581.9V110.1H584.2V111.8H588.7V112.3H590.9V112.7H595.4V113.5H597.7V113.6H615.8V116.1H618.0V117.7H622.0V117.7H622.0V230H58Z" fill="url(#ga)" class="area"></path><path d="M58.0,14.0H58.0V14.0H58.0V14.0H60.3V14.0H62.5V14.0H64.8V14.0H71.5V14.0H73.8V14.0H78.3V14.0H85.1V14.0H87.4V14.0H89.6V14.0H98.6V14.0H103.2V14.0H105.4V14.0H107.7V14.0H109.9V14.0H114.5V14.0H116.7V14.0H119.0V14.0H121.2V14.0H123.5V14.0H128.0V14.0H132.5V14.0H134.8V14.0H139.3V14.0H141.6V14.0H143.8V14.0H146.1V14.0H150.6V14.5H164.1V21.7H168.7V25.5H173.2V27.0H179.9V29.6H182.2V30.2H186.7V33.4H198.0V43.6H204.8V46.9H209.3V47.5H211.6V48.0H216.1V48.0H227.4V50.4H229.6V50.6H234.1V53.0H238.7V53.0H238.7V55.3H245.4V55.6H252.2V56.7H256.7V57.7H259.0V58.4H265.8V60.9H268.0V61.0H270.3V61.3H272.5V61.3H277.0V61.3H279.3V61.3H286.1V61.3H288.3V61.3H292.8V64.0H299.6V66.3H304.1V67.6H326.7V76.1H331.2V78.3H335.8V79.5H338.0V79.7H340.3V79.8H342.5V80.2H349.3V82.5H356.1V84.5H358.3V84.5H367.4V84.5H369.6V84.5H371.9V84.5H378.7V84.5H380.9V84.5H383.2V84.5H399.0V85.5H403.5V86.7H405.8V87.5H410.3V88.3H414.8V89.2H419.3V89.7H423.8V90.4H426.1V90.6H430.6V90.6H432.9V90.6H437.4V90.8H439.6V90.8H446.4V90.9H448.7V91.6H453.2V92.0H475.8V95.3H480.3V95.9H482.5V95.9H489.3V97.6H491.6V98.3H493.8V98.7H498.3V99.3H500.6V99.3H505.1V99.3H507.4V99.6H530.0V101.8H532.2V102.1H534.5V102.7H539.0V103.2H548.0V105.9H552.5V106.3H554.8V106.6H559.3V107.1H563.8V107.6H566.1V107.8H575.1V109.8H577.4V110.1H581.9V110.1H584.2V111.8H588.7V112.3H590.9V112.7H595.4V113.5H597.7V113.6H615.8V116.1H618.0V117.7H622.0V117.7H622.0" fill="none" stroke="var(--saffron)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" class="series s-b"></path><circle cx="622" cy="117.6734575651714" r="4" fill="var(--saffron)" class="dot d-b"></circle></svg>
+          </div>
+          <div class="card log-card">
+            <div class="card-h"><span>Solver log</span><span class="muted" id="log-engine">Branch-and-bound</span></div>
+            <div class="log" id="log"><div class="l ">nodes    5625  open   1690  bound -96785.86573  incumbent -96737.53223</div><div class="l ">nodes    5725  open   1695  bound -96784.74155  incumbent -96737.53223</div><div class="l ">nodes    5750  open   1700  bound -96784.60925  incumbent -96737.53223</div><div class="l inc">incumbent -96757.36136 from fix-and-solve at node 5800</div><div class="l ">nodes    5825  open   1712  bound -96783.68824  incumbent -96757.36136</div><div class="l ">nodes    5875  open   1725  bound -96783.39414  incumbent -96757.36136</div><div class="l ">nodes    5900  open   1717  bound -96783.17834  incumbent -96757.36136</div><div class="l ">nodes    5950  open   1721  bound -96782.73622  incumbent -96757.36136</div><div class="l ">nodes    5975  open   1716  bound -96782.66635  incumbent -96757.36136</div><div class="l ">nodes    6175  open   1706  bound -96781.33217  incumbent -96757.36136</div><div class="l ">nodes    6200  open   1695  bound -96780.45941  incumbent -96757.36136</div><div class="l inc">incumbent -96780.09824 from LP at node 6244</div><div class="l ok">Branch-and-bound: optimal, objective -96,780.098239 in 4.71 s</div></div>
+          </div>
+        </div>
+
+        <div class="result optimal" id="result">
+          <div class="res-status" id="res-status">OPTIMAL</div>
+          <div class="res-cell big"><div class="lab" id="res-obj-lab">Margin, Apr–Jul</div><div class="val" id="res-obj">$ 96.78 M</div></div>
+          <div class="res-cell"><div class="lab">Time</div><div class="val" id="res-time">4.71 s</div></div>
+          <div class="res-cell"><div class="lab" id="res-it-lab">Nodes</div><div class="val" id="res-it">6,244</div></div>
+          <div class="res-cell"><div class="lab">Max violation</div><div class="val" id="res-viol">2.3e−13</div></div>
+          <div class="res-cell verify" id="verify">
+            <button class="ver-btn" id="verify-btn">Verify with HiGHS</button>
+            <div class="ver-out" id="verify-out"><div class="vh">HiGHS 1.15 · 1.46 s</div><div class="v">-96,780.0982</div><div class="ok">✓ same optimum · Δ 1.6e−12</div></div>
+          </div>
+        </div>
+
+        <div class="card insight" id="insight"><div class="ins-h">Crude parcels and FCC mode, month by month</div><div class="months"><div class="month"><div class="mh"><span>APR</span><span class="fcc">FCC HIGH</span></div><div class="parcel sweet"><span class="ships"><i></i></span>1 × Big Hill Sweet</div><div class="parcel "><span class="ships"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>7 × Bryan Mound Sour</div></div><div class="month"><div class="mh"><span>MAY</span><span class="fcc">FCC HIGH</span></div><div class="parcel "><span class="ships"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>8 × Bryan Mound Sour</div></div><div class="month"><div class="mh"><span>JUN</span><span class="fcc">FCC HIGH</span></div><div class="parcel "><span class="ships"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>8 × Bryan Mound Sour</div></div><div class="month"><div class="mh"><span>JUL</span><span class="fcc">FCC HIGH</span></div><div class="parcel sweet"><span class="ships"><i></i></span>1 × Big Hill Sweet</div><div class="parcel "><span class="ships"><i></i><i></i><i></i><i></i><i></i><i></i></span>6 × Bryan Mound Sour</div></div></div><div class="ins-note">Each block is one crude parcel. Integer decisions: how many parcels of which crude, and which FCC mode, every month.</div></div>
+      </div>
+    </section>
+
+    <!-- ============================== BENCHMARKS ============================== -->
+    <section class="view hidden" id="view-bench">
+      <div class="bench-head">
+        <h2>Measured on public benchmark sets</h2>
+        <p>Every instance solved in its own process, then re-solved by an independent reference. "Solved" means the reference optimum is matched and every constraint holds.</p>
+      </div>
+      <div class="bench-cards" id="bench-cards"></div>
+      <div class="bench-row">
+        <div class="card found">
+          <div class="card-h"><span>What checking everything found in the reference solvers</span></div>
+          <table class="found-t">
+            <tbody><tr><td class="who">HiGHS 1.15.1</td><td>misreads the RHS section of <code>DPKLO1.QPS</code>; drops coefficients below 1e-9 in <code>KSIP</code>, <code>HUESTIS</code></td></tr>
+            <tr><td class="who">NVIDIA cuOpt 26.8</td><td>reports "optimal" 7665 on MIPLIB <code>p0201</code>; the optimum is 7615</td></tr>
+            <tr><td class="who">Clarabel 0.11</td><td>~1e-6 off at default tolerances on several QPs where NIRNAY matches the published optimum</td></tr>
+            <tr><td class="who">HiGHS PDLP</td><td>stops at limit/1000 s whenever a finite time limit is set</td></tr>
+          </tbody></table>
+        </div>
+        <div class="card speed">
+          <div class="card-h"><span>Honest about speed</span></div>
+          <div class="speed-big" id="speed-big">—</div>
+          <p class="muted">slower than HiGHS on Netlib (shifted geometric mean). The iteration loop is compiled; hyper-sparse solves and a Markowitz LU are next.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== SOURCE ============================== -->
+    <section class="view hidden" id="view-source">
+      <div class="src-grid">
+        <div class="card">
+          <div class="card-h"><span>The solver, module by module</span><span class="muted" id="src-total"></span></div>
+          <div class="tree" id="src-tree"></div>
+        </div>
+        <div class="src-right">
+          <div class="card imports">
+            <div class="card-h"><span>Imports scanned in <code>nirnay/</code></span></div>
+            <div id="src-third"></div>
+            <div class="solver-scan" id="src-solvers"></div>
+          </div>
+          <div class="card code">
+            <div class="card-h"><span><code>lp/_simplex_kernels.py</code> · the compiled dual simplex iteration</span></div>
+            <pre id="src-code"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+
+
+</body></html>

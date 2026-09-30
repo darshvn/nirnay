@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:Inter;font-weight:600;src:url(inter-latin-600-normal.woff2)}
+@font-face{font-family:Inter;font-weight:800;src:url(inter-latin-800-normal.woff2)}
+html,body{margin:0;width:1280px;height:720px;overflow:hidden}
+body{font-family:Inter;color:#E8ECF6;background:radial-gradient(900px 600px at 85% -10%,#1B2A5A 0%,rgba(27,42,90,0) 60%),radial-gradient(700px 500px at -10% 110%,#2A1E3E 0%,rgba(42,30,62,0) 55%),#0B1020;position:relative}
+.shot{position:absolute;right:-150px;top:120px;width:760px;border-radius:18px;border:1px solid #2E3B63;box-shadow:0 40px 90px rgba(0,0,0,.6);transform:perspective(1400px) rotateY(-16deg) rotateX(4deg);opacity:.95}
+.fade{position:absolute;inset:0;background:linear-gradient(90deg,#0B1020 0%,#0B1020 44%,rgba(11,16,32,.2) 70%,rgba(11,16,32,0) 100%)}
+.l{position:absolute;left:64px;top:64px;width:720px}
+.wm{display:flex;align-items:center;gap:18px}
+.mk{display:grid;grid-template-columns:34px 34px;gap:7px}.mk i{width:34px;height:34px;border-radius:8px;background:#2B3A66}
+.mk i:nth-child(1){background:#F28C38}.mk i:nth-child(4){background:#2FBF71}
+.name{font-weight:800;font-size:76px;letter-spacing:.02em}
+.x{font-weight:800;font-size:230px;line-height:.9;color:#F28C38;margin-top:34px;letter-spacing:-.04em}
+.sub{font-weight:800;font-size:46px;line-height:1.1;margin-top:10px}
+.small{font-weight:600;font-size:26px;color:#AEB8D0;margin-top:14px}
+.chip{position:absolute;left:64px;bottom:56px;font-weight:800;font-size:28px;color:#0B1020;background:#2FBF71;padding:12px 22px;border-radius:12px}
+</style></head><body>
+<img class="shot" src="shot.png"><div class="fade"></div>
+<div class="l">
+ <div class="wm"><div class="mk"><i></i><i></i><i></i><i></i></div><div class="name">NIRNAY</div></div>
+ <div class="x">236×</div>
+ <div class="sub">faster than HiGHS</div>
+ <div class="small">on one 1.5 M-nonzero LP · laptop GPU</div>
+</div>
+<div class="chip">Built from scratch in India · no solver library</div>
+</body></html>

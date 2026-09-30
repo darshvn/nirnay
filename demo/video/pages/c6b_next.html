@@ -1,0 +1,58 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Roadmap</title>
+<style>
+@font-face { font-family: Inter; font-weight: 400; src: url(fonts/inter-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: Inter; font-weight: 500; src: url(fonts/inter-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: Inter; font-weight: 600; src: url(fonts/inter-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: Inter; font-weight: 700; src: url(fonts/inter-latin-700-normal.woff2) format("woff2"); }
+@font-face { font-family: Inter; font-weight: 800; src: url(fonts/inter-latin-800-normal.woff2) format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 400; src: url(fonts/jetbrains-mono-latin-400-normal.woff2) format("woff2"); }
+:root { --bg:#0B1020; --bg2:#0F1629; --card:#131B31; --card2:#172039; --line:#243052; --line2:#2E3B63; --ink:#E8ECF6;
+  --ink2:#AEB8D0; --muted:#7C88A6; --saffron:#F28C38; --saffron2:#FFB066; --green:#2FBF71; --green2:#7BE0A6;
+  --blue:#5B8CFF; --violet:#A27BFF; }
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; }
+body { background: radial-gradient(1400px 800px at 80% -10%, #1B2A5A 0%, rgba(27,42,90,0) 60%),
+  radial-gradient(1000px 700px at -10% 110%, #2A1E3E 0%, rgba(42,30,62,0) 55%), var(--bg);
+  color: var(--ink); font: 400 28px/1.35 Inter, sans-serif; -webkit-font-smoothing: antialiased; }
+.stage { position: absolute; inset: 0; }
+.grid { position: absolute; inset: -200px; background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+  linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px); background-size: 64px 64px; }
+.mark { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mark span { border-radius: 8px; background: var(--line2); }
+.mark span:nth-child(1) { background: var(--saffron); } .mark span:nth-child(4) { background: var(--green); }
+.card { background: linear-gradient(180deg, var(--card) 0%, #111831 100%); border: 1px solid var(--line); border-radius: 22px; }
+.kicker { font: 700 22px Inter; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.saffron { color: var(--saffron2); } .green { color: var(--green2); } .muted { color: var(--muted); }
+
+.cols { position: absolute; left: 150px; right: 150px; top: 0; bottom: 0; display: grid; grid-template-columns: 1.1fr 1fr; gap: 80px; align-items: center; }
+.step { display: flex; gap: 28px; margin-top: 44px; }
+.step .n { width: 64px; height: 64px; flex: none; border-radius: 18px; display: grid; place-items: center; font: 800 32px Inter;
+  background: rgba(242,140,56,.12); border: 1px solid rgba(242,140,56,.45); color: var(--saffron2); }
+.step .t { font: 800 44px Inter; }
+.step .d { font: 500 28px/1.35 Inter; color: var(--ink2); margin-top: 6px; }
+.step .now { font: 600 22px Inter; color: var(--muted); margin-top: 8px; }
+.right { padding: 48px 50px 40px; box-shadow: 0 30px 80px rgba(0,0,0,.4); }
+.right .head { font: 800 50px/1.1 Inter; margin: 14px 0 22px; }
+.ben { display: flex; gap: 22px; align-items: flex-start; padding: 22px 0; border-top: 1px dashed var(--line2); }
+.ben i { width: 18px; height: 18px; border-radius: 50%; background: var(--green); margin-top: 12px; flex: none; box-shadow: 0 0 16px var(--green); }
+.ben b { display: block; font: 700 36px Inter; }
+.ben span { display: block; font: 500 25px Inter; color: var(--ink2); margin-top: 4px; }
+</style></head><body><div class="stage"><div class="grid"></div>
+<div class="cols">
+  <div class="left">
+    <div class="kicker" id="k1">Next</div>
+    <div class="step" id="s1"><div class="n">1</div><div><div class="t">Close the speed gap</div>
+      <div class="d">hyper-sparse linear algebra · a Markowitz LU factorisation</div><div class="now">today: 2.6× slower than HiGHS on Netlib</div></div></div>
+    <div class="step" id="s2"><div class="n">2</div><div><div class="t">Harder integer problems</div>
+      <div class="d">MIR, cover and clique cuts · RINS / RENS heuristics</div><div class="now">today: 33 of 64 MIPLIB proven optimal</div></div></div>
+    <div class="step" id="s3"><div class="n">3</div><div><div class="t">Live at the finale</div>
+      <div class="d">an MRPL planning model, solved and verified against HiGHS on stage</div></div></div>
+  </div>
+  <div class="right card" id="mrpl">
+    <div class="kicker">For MRPL</div>
+    <div class="head">Planning software it owns</div>
+    <div class="ben" id="b1"><i></i><div><b>No per-seat licence</b><span>Apache-2.0, runs on hardware MRPL already has</span></div></div>
+    <div class="ben" id="b2"><i></i><div><b>Code it can audit</b><span>every pivot, factorisation and cut is readable</span></div></div>
+    <div class="ben" id="b3"><i></i><div><b>Shadow prices it can trust</b><span>exact duals, checked against an independent solver</span></div></div>
+  </div>
+</div></div></body></html>

@@ -1,0 +1,38 @@
+{
+ "refinery": {
+  "status": "OPTIMAL",
+  "obj": "$ 290.64 M / yr",
+  "time": "9 ms",
+  "it": "162",
+  "verify": "HiGHS 1.15 \u00b7 3 ms\n-290,643.2878\n\u2713 same optimum \u00b7 \u0394 2.2e\u221215",
+  "logLines": 13,
+  "paths": 1
+ },
+ "plan4": {
+  "status": "OPTIMAL",
+  "obj": "$ 96.78 M",
+  "time": "4.71 s",
+  "it": "6,244",
+  "verify": "HiGHS 1.15 \u00b7 1.46 s\n-96,780.0982\n\u2713 same optimum \u00b7 \u0394 1.6e\u221212",
+  "logLines": 13,
+  "paths": 2
+ },
+ "unload": {
+  "status": "OPTIMAL",
+  "obj": "79.750",
+  "time": "23.22 s",
+  "it": "644",
+  "verify": "HiGHS 1.15 \u00b7 1.45 s\n79.7500\n\u2713 same optimum \u00b7 \u0394 1.8e\u221215",
+  "logLines": 13,
+  "paths": 2
+ },
+ "datt256": {
+  "status": "OPTIMAL",
+  "obj": "256.0000",
+  "time": "1.10 s",
+  "it": "640",
+  "verify": "HiGHS 1.15 \u00b7 259 s (benchmark)\n256.0000\n\u2713 same optimum \u00b7 \u0394 2.9e\u22128",
+  "logLines": 12,
+  "paths": 2
+ }
+}

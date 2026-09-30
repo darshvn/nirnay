@@ -1,0 +1,207 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NIRNAY Studio</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <div>
+        <div class="name">NIRNAY <em>Studio</em></div>
+        <div class="tag">Indigenous LP · MILP · QP solver · SIH26119</div>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="solve" role="tab">Solve</button>
+      <button class="tab" data-view="bench" role="tab">Benchmarks</button>
+      <button class="tab" data-view="source" role="tab">Source</button>
+    </nav>
+    <div class="pill-sovereign"><span class="dot"></span>No solver library inside</div>
+  </header>
+
+  <main>
+    <!-- ============================== SOLVE ============================== -->
+    <section class="view" id="view-solve">
+      <aside class="shelf" id="shelf"><div class="grp">MRPL scenario</div><button class="item" data-key="refinery"><div class="t"><span class="kind LP">LP</span>Refinery crude plan</div><div class="s">Crude selection, CDU cuts, FCC and reformer, BS-VI blending</div></button><button class="item" data-key="plan4"><div class="t"><span class="kind MILP">MILP</span>4-month refinery plan</div><div class="s">Crude parcels per month, FCC mode changeovers, product inventories</div></button><button class="item" data-key="unload"><div class="t"><span class="kind MILP">MILP</span>Crude unloading schedule</div><div class="s">Vessels → storage tanks → charging tanks → CDU, sulphur specs</div></button><div class="grp">Scale</div><button class="item active" data-key="datt256"><div class="t"><span class="kind LP">LP</span>datt256 · large LP</div><div class="s">11,077 rows · 262,144 columns · 1.5 M nonzeros (MIPLIB 2017 relaxation)</div></button><div class="grp">Benchmarks</div><button class="item" data-key="pilot"><div class="t"><span class="kind LP">LP</span>Netlib pilot</div><div class="s">Notoriously ill-conditioned economic planning model</div></button><button class="item" data-key="p0201"><div class="t"><span class="kind MILP">MILP</span>MIPLIB p0201</div><div class="s">201 binary variables, classic MIPLIB 3 instance</div></button><button class="item" data-key="qship"><div class="t"><span class="kind QP">QP</span>Maros–Mészáros QSHIP04S</div><div class="s">Convex quadratic program</div></button></aside>
+
+      <div class="work">
+        <div class="card model-card" id="model-card">
+          <div class="mc-left">
+            <div class="mc-kicker"><span class="kind LP" id="mc-kind">LP</span><span id="mc-group">Scale</span></div>
+            <h1 id="mc-title">datt256 · large LP</h1>
+            <p id="mc-sub" class="mc-sub">11,077 rows · 262,144 columns · 1.5 M nonzeros (MIPLIB 2017 relaxation)</p>
+            <p id="mc-src" class="mc-src">MIPLIB 2017 · reference times measured in results/large_pdlp_gpu.csv</p>
+          </div>
+          <div class="mc-stats" id="mc-stats"><div class="stat"><div class="n">11,077</div><div class="l">Rows</div></div><div class="stat"><div class="n">262,144</div><div class="l">Columns</div></div><div class="stat"><div class="n">1,503,732</div><div class="l">Nonzeros</div></div><div class="stat"><div class="n">LP</div><div class="l">Type</div></div></div>
+        </div>
+
+        <div class="runbar">
+          <div class="engines" id="engines"><button class="eng" data-eng="simplex">Dual simplex</button><button class="eng" data-eng="ipm">Interior point</button><button class="eng" data-eng="pdlp">PDLP · CPU</button><button class="eng active" data-eng="pdlp-gpu">PDLP · GPU</button></div>
+          <button class="solve" id="solve-btn"><span class="solve-ic"></span><span id="solve-label">Solve</span></button>
+        </div>
+
+        <div class="live">
+          <div class="card chart-card">
+            <div class="card-h"><span id="chart-title">PDLP: relative KKT error</span><span class="legend" id="chart-legend"><span><i style="background:var(--blue)"></i>Primal</span><span><i style="background:var(--violet)"></i>Dual</span><span><i style="background:var(--saffron)"></i>Gap</span></span></div>
+            <svg id="chart" viewBox="0 0 640 260" preserveAspectRatio="none"><line x1="58" x2="622" y1="230" y2="230" stroke="#243052" stroke-width="1"></line><text x="50" y="234" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">1e−6</text><line x1="58" x2="622" y1="194" y2="194" stroke="#243052" stroke-width="1"></line><text x="50" y="198" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">1e−5</text><line x1="58" x2="622" y1="158.00000000000003" y2="158.00000000000003" stroke="#243052" stroke-width="1"></line><text x="50" y="162.00000000000003" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">1e−4</text><line x1="58" x2="622" y1="122" y2="122" stroke="#243052" stroke-width="1"></line><text x="50" y="126" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">1e−3</text><line x1="58" x2="622" y1="86.00000000000001" y2="86.00000000000001" stroke="#243052" stroke-width="1"></line><text x="50" y="90.00000000000001" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">1e−2</text><line x1="58" x2="622" y1="49.99999999999999" y2="49.99999999999999" stroke="#243052" stroke-width="1"></line><text x="50" y="53.99999999999999" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">1e−1</text><line x1="58" x2="622" y1="14" y2="14" stroke="#243052" stroke-width="1"></line><text x="50" y="18" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">1e0</text><text x="622" y="252" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">640 iterations</text><text x="58" y="252" fill="#7C88A6" font-size="11" font-family="Inter">64</text><defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F28C38" stop-opacity=".28"></stop><stop offset="1" stop-color="#F28C38" stop-opacity="0"></stop></linearGradient></defs><path d="M58.0,30.4L120.7,83.1L183.3,95.1L246.0,114.7L308.7,126.5L371.3,164.3L434.0,160.5L496.7,170.1L559.3,189.9L622.0,200.5" fill="none" stroke="var(--blue)" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round" class="series s-a"></path><circle cx="622" cy="200.49641832049275" r="4" fill="var(--blue)" class="dot d-a"></circle><path d="M58.0,14.0L120.7,14.0L183.3,52.9L246.0,73.7L308.7,76.0L371.3,98.8L434.0,108.3L496.7,149.7L559.3,124.2L622.0,191.1" fill="none" stroke="var(--saffron)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" class="series s-c"></path><circle cx="622" cy="191.1494751422855" r="4" fill="var(--saffron)" class="dot d-c"></circle></svg>
+          </div>
+          <div class="card log-card">
+            <div class="card-h"><span>Solver log</span><span class="muted" id="log-engine">PDLP · GPU</span></div>
+            <div class="log" id="log"><div class="l sys">$ nirnay solve datt256 --method pdlp-gpu</div><div class="l ">64     0.46s  obj +2.42437364e+02  rel p 3.5e-01 d 0.0e+00 g 1.0e+00  eta 9.38e-01 w 1.81e+00 restarts 0</div><div class="l ">128     0.54s  obj +2.57294162e+02  rel p 1.2e-02 d 0.0e+00 g 1.0e+00  eta 1.71e+00 w 1.86e+00 restarts 1</div><div class="l ">192     0.61s  obj +2.56664827e+02  rel p 5.6e-03 d 0.0e+00 g 8.3e-02  eta 1.67e+00 w 1.24e+00 restarts 2</div><div class="l ">256     0.68s  obj +2.55956257e+02  rel p 1.6e-03 d 0.0e+00 g 2.2e-02  eta 1.24e+00 w 1.53e+00 restarts 3</div><div class="l ">320     0.74s  obj +2.55952116e+02  rel p 7.5e-04 d 0.0e+00 g 1.9e-02  eta 1.78e+00 w 1.53e+00 restarts 3</div><div class="l ">384     0.80s  obj +2.55994060e+02  rel p 6.7e-05 d 0.0e+00 g 4.4e-03  eta 1.03e+00 w 1.92e+00 restarts 4</div><div class="l ">448     0.87s  obj +2.55996199e+02  rel p 8.5e-05 d 0.0e+00 g 2.4e-03  eta 1.12e+00 w 1.92e+00 restarts 4</div><div class="l ">512     0.93s  obj +2.56000101e+02  rel p 4.6e-05 d 0.0e+00 g 1.7e-04  eta 1.14e+00 w 1.08e+00 restarts 5</div><div class="l ">576     1.00s  obj +2.56000002e+02  rel p 1.3e-05 d 0.0e+00 g 8.7e-04  eta 1.17e+00 w 1.73e+00 restarts 6</div><div class="l ">640     1.06s  obj +2.56000007e+02  rel p 6.6e-06 d 0.0e+00 g 1.2e-05  eta 1.84e+00 w 1.73e+00 restarts 6</div><div class="l ok">PDLP · GPU: optimal, objective 256.000007 in 1.10 s</div></div>
+          </div>
+        </div>
+
+        <div class="result optimal" id="result">
+          <div class="res-status" id="res-status">OPTIMAL</div>
+          <div class="res-cell big"><div class="lab" id="res-obj-lab">Objective</div><div class="val" id="res-obj">256.0000</div></div>
+          <div class="res-cell"><div class="lab">Time</div><div class="val" id="res-time">1.10 s</div></div>
+          <div class="res-cell"><div class="lab" id="res-it-lab">Iterations</div><div class="val" id="res-it">640</div></div>
+          <div class="res-cell"><div class="lab">Max violation</div><div class="val" id="res-viol">1.2e−4</div></div>
+          <div class="res-cell verify" id="verify">
+            <button class="ver-btn" id="verify-btn">Verify with HiGHS</button>
+            <div class="ver-out" id="verify-out"><div class="vh">HiGHS 1.15 · 259 s (benchmark)</div><div class="v">256.0000</div><div class="ok">✓ same optimum · Δ 2.9e−8</div></div>
+          </div>
+        </div>
+
+        <div class="card insight" id="insight"><div class="scale"><div><div class="ins-h">Same LP, same laptop · 1e-4 accuracy</div><div class="race">
+      <div class="r"><div class="who">NIRNAY PDLP<small>GPU · RTX 3050 laptop · this run</small></div><div class="track"><div class="fill" style="width:6.5%;background:linear-gradient(90deg,#F28C38,#FFB066)"></div></div><div class="t">1.10 s</div></div>
+      <div class="r"><div class="who">NIRNAY PDLP<small>CPU · 6 cores · benchmark</small></div><div class="track"><div class="fill" style="width:8.9%;background:linear-gradient(90deg,#2E4A8F,#5B8CFF)"></div></div><div class="t">2.04 s</div></div>
+      <div class="r"><div class="who">HiGHS 1.15<small>default · benchmark</small></div><div class="track"><div class="fill" style="width:100.0%;background:linear-gradient(90deg,#5C667F,#9AA5B1)"></div></div><div class="t">259 s</div></div>
+      </div><div class="ins-note">Bar length on a square-root scale. Reference times from results/large_pdlp_gpu.csv.</div></div>
+      <div class="speedup"><div class="x">236×</div><p>faster than HiGHS on this LP</p></div></div></div>
+      </div>
+    </section>
+
+    <!-- ============================== BENCHMARKS ============================== -->
+    <section class="view hidden" id="view-bench">
+      <div class="bench-head">
+        <h2>Measured on public benchmark sets</h2>
+        <p>Every instance solved in its own process, then re-solved by an independent reference. "Solved" means the reference optimum is matched and every constraint holds.</p>
+      </div>
+      <div class="bench-cards" id="bench-cards"><div class="card bc"><div class="nm">Netlib LP</div><div class="wh">the classic hard LP collection</div>
+      <div class="big">90<small> / 90</small></div>
+      <div class="cmp"><div class="row"><span>NIRNAY</span><div class="track"><div class="fill" style="width:100%;background:linear-gradient(90deg,#F28C38,#FFB066)"></div></div><b>90</b></div>
+      <div class="row"><span>HiGHS</span><div class="track"><div class="fill" style="width:100%;background:#5C667F"></div></div><b>90</b></div></div></div><div class="card bc"><div class="nm">MIPLIB 3</div><div class="wh">mixed-integer programs, 60 s each</div>
+      <div class="big">33<small> / 64</small></div>
+      <div class="cmp"><div class="row"><span>NIRNAY</span><div class="track"><div class="fill" style="width:51.5625%;background:linear-gradient(90deg,#F28C38,#FFB066)"></div></div><b>33</b></div>
+      <div class="row"><span>HiGHS</span><div class="track"><div class="fill" style="width:73.4375%;background:#5C667F"></div></div><b>47</b></div></div></div><div class="card bc"><div class="nm">Maros–Mészáros</div><div class="wh">convex quadratic programs</div>
+      <div class="big">121<small> / 138</small></div>
+      <div class="cmp"><div class="row"><span>NIRNAY</span><div class="track"><div class="fill" style="width:87.68115942028986%;background:linear-gradient(90deg,#F28C38,#FFB066)"></div></div><b>121</b></div>
+      <div class="row"><span>Clarabel</span><div class="track"><div class="fill" style="width:88.40579710144928%;background:#5C667F"></div></div><b>122</b></div></div></div></div>
+      <div class="bench-row">
+        <div class="card found">
+          <div class="card-h"><span>What checking everything found in the reference solvers</span></div>
+          <table class="found-t">
+            <tbody><tr><td class="who">HiGHS 1.15.1</td><td>misreads the RHS section of <code>DPKLO1.QPS</code>; drops coefficients below 1e-9 in <code>KSIP</code>, <code>HUESTIS</code></td></tr>
+            <tr><td class="who">NVIDIA cuOpt 26.8</td><td>reports "optimal" 7665 on MIPLIB <code>p0201</code>; the optimum is 7615</td></tr>
+            <tr><td class="who">Clarabel 0.11</td><td>~1e-6 off at default tolerances on several QPs where NIRNAY matches the published optimum</td></tr>
+            <tr><td class="who">HiGHS PDLP</td><td>stops at limit/1000 s whenever a finite time limit is set</td></tr>
+          </tbody></table>
+        </div>
+        <div class="card speed">
+          <div class="card-h"><span>Honest about speed</span></div>
+          <div class="speed-big" id="speed-big">2.6×</div>
+          <p class="muted">slower than HiGHS on Netlib (shifted geometric mean). The iteration loop is compiled; hyper-sparse solves and a Markowitz LU are next.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== SOURCE ============================== -->
+    <section class="view hidden" id="view-source">
+      <div class="src-grid">
+        <div class="card">
+          <div class="card-h"><span>The solver, module by module</span><span class="muted" id="src-total">7,483 lines</span></div>
+          <div class="tree" id="src-tree"><div class="m"><span>cases/_assays.py</span><b>262</b></div><div class="m"><span>cases/_builder.py</span><b>113</b></div><div class="m"><span>cases/_matpower.py</span><b>31</b></div><div class="m"><span>cases/crude_scheduling.py</span><b>400</b></div><div class="m"><span>cases/economic_dispatch.py</span><b>116</b></div><div class="m"><span>cases/facility_location.py</span><b>102</b></div><div class="m"><span>cases/product_distribution.py</span><b>181</b></div><div class="m"><span>cases/refinery_multiperiod.py</span><b>134</b></div><div class="m"><span>cases/refinery_planning.py</span><b>299</b></div><div class="m"><span>cases/unit_commitment.py</span><b>188</b></div><div class="m"><span>cli.py</span><b>76</b></div><div class="m"><span>io/mps.py</span><b>318</b></div><div class="m"><span>io/mps_write.py</span><b>222</b></div><div class="m"><span>linalg/cholesky.py</span><b>204</b></div><div class="m"><span>linalg/ldl.py</span><b>132</b></div><div class="m"><span>linalg/lu.py</span><b>530</b></div><div class="m"><span>linalg/normal.py</span><b>111</b></div><div class="m"><span>linalg/ordering.py</span><b>90</b></div><div class="m"><span>linalg/sparse_kernels.py</span><b>86</b></div><div class="m"><span>lp/_simplex_kernels.py</span><b>357</b></div><div class="m"><span>lp/ipm.py</span><b>302</b></div><div class="m"><span>lp/pdlp.py</span><b>1023</b></div><div class="m"><span>lp/simplex.py</span><b>467</b></div><div class="m"><span>mip/bnb.py</span><b>476</b></div><div class="m"><span>mip/cuts.py</span><b>148</b></div><div class="m"><span>mip/propagate.py</span><b>128</b></div><div class="m"><span>model.py</span><b>211</b></div><div class="m"><span>presolve/presolve.py</span><b>271</b></div><div class="m"><span>presolve/scaling.py</span><b>110</b></div><div class="m"><span>qp/ipm.py</span><b>282</b></div></div>
+        </div>
+        <div class="src-right">
+          <div class="card imports">
+            <div class="card-h"><span>Imports scanned in <code>nirnay/</code></span></div>
+            <div id="src-third"><span class="chip">cupy<b>1 files</b></span><span class="chip">numba<b>8 files</b></span><span class="chip">numpy<b>25 files</b></span><span class="chip">openpyxl<b>1 files</b></span><span class="chip">xlrd<b>1 files</b></span></div>
+            <div class="solver-scan" id="src-solvers"><span class="chip">✓ highspy <b>0</b></span><span class="chip">✓ scipy <b>0</b></span><span class="chip">✓ cvxpy <b>0</b></span><span class="chip">✓ gurobipy <b>0</b></span><span class="chip">✓ cplex <b>0</b></span><span class="chip">✓ xpress <b>0</b></span><span class="chip">✓ pyscipopt <b>0</b></span><span class="chip">✓ ortools <b>0</b></span><span class="chip">✓ pulp <b>0</b></span><span class="chip">✓ mosek <b>0</b></span><span class="chip">✓ clarabel <b>0</b></span><span class="chip">✓ osqp <b>0</b></span><span class="chip">✓ cylp <b>0</b></span><span class="chip">✓ swiglpk <b>0</b></span></div>
+          </div>
+          <div class="card code">
+            <div class="card-h"><span><code>lp/_simplex_kernels.py</code> · the compiled dual simplex iteration</span></div>
+            <pre id="src-code"><span class="nb">@njit(cache=True)</span>
+<span class="kw">def</span> <span class="fn">dual_run</span>(n, m, Acp, Ari, Avl, ATp, ATi, ATx,
+             x, d, c, status, head, weights, lo, up, skip,
+             Lp, Li, Lx, Up, Ui, Ux, Udiag, prow, q, URp, URj, URx, LRp, LRc, LRx,
+             Ep, Er, Ei, Ex, n_eta, refactor_every, lu_nnz,
+             ptol, dtol, pivtol, budget):
+    <span class="cm">"""Returns (code, iterations done, n_eta, row r involved)."""</span>
+    nm = n + m
+    e = np.zeros(m)
+    rho = np.empty(m)
+    wrk = np.empty(m)
+    alpha_r = np.empty(nm)
+    alpha_q = np.empty(m)
+    tau = np.empty(m)
+    rhs = np.zeros(m)
+    any_skip = False
+    <span class="kw">for</span> t <span class="kw">in</span> range(m):
+        <span class="kw">if</span> skip[t]:
+            any_skip = True
+    its = 0
+    <span class="kw">while</span> its &lt; budget:
+        <span class="cm"># room <span class="kw">in</span> the eta file <span class="kw">for</span> one more (dense, worst case) update</span>
+        <span class="kw">if</span> Ep[n_eta] + 1 + m &gt; len(Ei) <span class="kw">or</span> n_eta + 2 &gt;= len(Er):
+            <span class="kw">return</span> RUN_GROW, its, n_eta, -1
+        r = <span class="fn">choose_leaving_head</span>(x, head, lo, up, weights, skip, ptol)
+        <span class="kw">if</span> r &lt; 0:
+            <span class="kw">if</span> any_skip:
+                <span class="kw">return</span> RUN_SKIP_EXHAUSTED, its, n_eta, -1
+            <span class="kw">return</span> RUN_OPTIMAL, its, n_eta, -1
+        jr = head[r]
+        <span class="kw">if</span> x[jr] &lt; lo[jr]:
+            sgn = -1.0
+            target = lo[jr]
+            delta = lo[jr] - x[jr]
+        <span class="kw">else</span>:
+            sgn = 1.0
+            target = up[jr]
+            delta = x[jr] - up[jr]
+        <span class="cm"># BTRAN: rho = B^-T e_r</span>
+        <span class="kw">for</span> t <span class="kw">in</span> range(m):
+            e[t] = 0.0
+        e[r] = 1.0
+        <span class="kw">if</span> n_eta:
+            <span class="fn">_eta_btran</span>(e, Ep, Er, Ei, Ex, n_eta)
+        <span class="fn">_btran_lu_sparse</span>(m, URp, URj, URx, LRp, LRc, LRx, Udiag, prow, q, e, rho)
+        <span class="fn">pivot_row</span>(n, m, ATp, ATi, ATx, rho, status, alpha_r)
+        qe, nflip, flips = <span class="fn">dual_ratio_test</span>(alpha_r, d, status, lo, up, sgn, delta, dtol, pivtol)
+        <span class="kw">if</span> qe &lt; 0:
+            <span class="kw">return</span> RUN_NO_ENTERING, its, n_eta, r
+        dq = d[qe]
+        stq = status[qe]
+        <span class="kw">if</span> (stq == AT_LOWER <span class="kw">and</span> dq &lt; 0.0) <span class="kw">or</span> (stq == AT_UPPER <span class="kw">and</span> dq &gt; 0.0):
+            c[qe] -= dq
+            d[qe] = 0.0
+        <span class="cm"># FTRAN: alpha_q = B^-1 a_q</span>
+        <span class="kw">for</span> t <span class="kw">in</span> range(m):
+            wrk[t] = 0.0
+        <span class="kw">if</span> qe &lt; n:
+            <span class="kw">for</span> p <span class="kw">in</span> range(Acp[qe], Acp[qe + 1]):
+                wrk[Ari[p]] = Avl[p]
+        <span class="kw">else</span>:
+            wrk[qe - n] = -1.0
+        <span class="fn">_ftran_lu</span>(m, Lp, Li, Lx, Up, Ui, Ux, Udiag, prow, q, wrk, alpha_q)
+        <span class="kw">if</span> n_eta:
+            <span class="fn">_eta_ftran</span>(alpha_q, Ep, Er, Ei, Ex, n_eta)
+        apiv = alpha_q[r]
+        <span class="kw">if</span> abs(apiv - alpha_r[qe]) &gt; 1e-6 * (1.0 + abs(apiv)) <span class="kw">or</span> abs(apiv) &lt; 1e-9:
+            <span class="kw">return</span> RUN_UNSTABLE, its, n_eta, r
+        <span class="cm"># bound flips move the basic variables once, before the pivot</span>
+        <span class="kw">if</span> nflip:
+            </pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+
+
+</body></html>

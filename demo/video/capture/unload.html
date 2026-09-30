@@ -1,0 +1,126 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NIRNAY Studio</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <div>
+        <div class="name">NIRNAY <em>Studio</em></div>
+        <div class="tag">Indigenous LP · MILP · QP solver · SIH26119</div>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="solve" role="tab">Solve</button>
+      <button class="tab" data-view="bench" role="tab">Benchmarks</button>
+      <button class="tab" data-view="source" role="tab">Source</button>
+    </nav>
+    <div class="pill-sovereign"><span class="dot"></span>No solver library inside</div>
+  </header>
+
+  <main>
+    <!-- ============================== SOLVE ============================== -->
+    <section class="view" id="view-solve">
+      <aside class="shelf" id="shelf"><div class="grp">MRPL scenario</div><button class="item" data-key="refinery"><div class="t"><span class="kind LP">LP</span>Refinery crude plan</div><div class="s">Crude selection, CDU cuts, FCC and reformer, BS-VI blending</div></button><button class="item" data-key="plan4"><div class="t"><span class="kind MILP">MILP</span>4-month refinery plan</div><div class="s">Crude parcels per month, FCC mode changeovers, product inventories</div></button><button class="item active" data-key="unload"><div class="t"><span class="kind MILP">MILP</span>Crude unloading schedule</div><div class="s">Vessels → storage tanks → charging tanks → CDU, sulphur specs</div></button><div class="grp">Scale</div><button class="item" data-key="datt256"><div class="t"><span class="kind LP">LP</span>datt256 · large LP</div><div class="s">11,077 rows · 262,144 columns · 1.5 M nonzeros (MIPLIB 2017 relaxation)</div></button><div class="grp">Benchmarks</div><button class="item" data-key="pilot"><div class="t"><span class="kind LP">LP</span>Netlib pilot</div><div class="s">Notoriously ill-conditioned economic planning model</div></button><button class="item" data-key="p0201"><div class="t"><span class="kind MILP">MILP</span>MIPLIB p0201</div><div class="s">201 binary variables, classic MIPLIB 3 instance</div></button><button class="item" data-key="qship"><div class="t"><span class="kind QP">QP</span>Maros–Mészáros QSHIP04S</div><div class="s">Convex quadratic program</div></button></aside>
+
+      <div class="work">
+        <div class="card model-card" id="model-card">
+          <div class="mc-left">
+            <div class="mc-kicker"><span class="kind MILP" id="mc-kind">MILP</span><span id="mc-group">MRPL scenario</span></div>
+            <h1 id="mc-title">Crude unloading schedule</h1>
+            <p id="mc-sub" class="mc-sub">Vessels → storage tanks → charging tanks → CDU, sulphur specs</p>
+            <p id="mc-src" class="mc-src">Lee, Pinto, Grossmann &amp; Park, Ind. Eng. Chem. Res. 35, 1996 (COSP1) · published optimum 79.75</p>
+          </div>
+          <div class="mc-stats" id="mc-stats"><div class="stat"><div class="n">1,307</div><div class="l">Rows</div></div><div class="stat"><div class="n">856</div><div class="l">Columns</div></div><div class="stat"><div class="n">8,048</div><div class="l">Nonzeros</div></div><div class="stat"><div class="n">64</div><div class="l">Integers</div></div></div>
+        </div>
+
+        <div class="runbar">
+          <div class="engines" id="engines"><button class="eng active" data-eng="bnb">Branch-and-bound</button></div>
+          <button class="solve" id="solve-btn"><span class="solve-ic"></span><span id="solve-label">Solve</span></button>
+        </div>
+
+        <div class="live">
+          <div class="card chart-card">
+            <div class="card-h"><span id="chart-title">Branch-and-bound</span><span class="legend" id="chart-legend"><span><i style="background:var(--green)"></i>Best plan found</span><span><i style="background:var(--saffron)"></i>Best still possible</span></span></div>
+            <svg id="chart" viewBox="0 0 640 260" preserveAspectRatio="none"><line x1="58" x2="622" y1="230" y2="230" stroke="#243052" stroke-width="1"></line><text x="50" y="234" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">66.56</text><line x1="58" x2="622" y1="176" y2="176" stroke="#243052" stroke-width="1"></line><text x="50" y="180" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">70.86</text><line x1="58" x2="622" y1="122" y2="122" stroke="#243052" stroke-width="1"></line><text x="50" y="126" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">75.16</text><line x1="58" x2="622" y1="68" y2="68" stroke="#243052" stroke-width="1"></line><text x="50" y="72" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">79.46</text><line x1="58" x2="622" y1="14" y2="14" stroke="#243052" stroke-width="1"></line><text x="50" y="18" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">83.76</text><text x="622" y="252" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">644 nodes</text><text x="58" y="252" fill="#7C88A6" font-size="11" font-family="Inter">0</text><defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F28C38" stop-opacity=".28"></stop><stop offset="1" stop-color="#F28C38" stop-opacity="0"></stop></linearGradient></defs><path d="M525.7,196.3H539.7V196.3H583.5V196.3H605.4V196.3H614.1V64.7H622.0V64.4H622.0" fill="none" stroke="var(--green)" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round" class="series s-a"></path><circle cx="622" cy="64.38953488372096" r="4" fill="var(--green)" class="dot d-a"></circle><path d="M58.0,61.3H167.5V61.3H189.4V61.3H255.0V61.3H342.6V61.3H364.5V61.3H386.4V61.3H452.1V61.3H495.9V61.3H517.8V61.3H525.7V61.3H539.7V61.3H583.5V63.1H605.4V64.2H614.1V64.2H622.0V64.2H622.0V230H58Z" fill="url(#ga)" class="area"></path><path d="M58.0,61.3H167.5V61.3H189.4V61.3H255.0V61.3H342.6V61.3H364.5V61.3H386.4V61.3H452.1V61.3H495.9V61.3H517.8V61.3H525.7V61.3H539.7V61.3H583.5V63.1H605.4V64.2H614.1V64.2H622.0V64.2H622.0" fill="none" stroke="var(--saffron)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" class="series s-b"></path><circle cx="622" cy="64.24003324651174" r="4" fill="var(--saffron)" class="dot d-b"></circle></svg>
+          </div>
+          <div class="card log-card">
+            <div class="card-h"><span>Solver log</span><span class="muted" id="log-engine">Branch-and-bound</span></div>
+            <div class="log" id="log"><div class="l ">nodes     325  open     59  bound +80  incumbent -inf</div><div class="l ">nodes     350  open     68  bound +80  incumbent -inf</div><div class="l ">nodes     375  open     78  bound +80  incumbent -inf</div><div class="l ">nodes     450  open     90  bound +80  incumbent -inf</div><div class="l ">nodes     500  open     82  bound +80  incumbent -inf</div><div class="l ">nodes     525  open     86  bound +80  incumbent -inf</div><div class="l inc">incumbent +69.25 from LP at node 534</div><div class="l ">nodes     550  open     98  bound +80  incumbent +69.25</div><div class="l ">nodes     600  open     85  bound +79.85  incumbent +69.25</div><div class="l ">nodes     625  open     78  bound +79.76190476  incumbent +69.25</div><div class="l inc">incumbent +79.72222222 from LP at node 635</div><div class="l inc">incumbent +79.75 from LP at node 644</div><div class="l ok">Branch-and-bound: optimal, objective 79.750000 in 23.22 s</div></div>
+          </div>
+        </div>
+
+        <div class="result optimal" id="result">
+          <div class="res-status" id="res-status">OPTIMAL</div>
+          <div class="res-cell big"><div class="lab" id="res-obj-lab">Gross margin</div><div class="val" id="res-obj">79.750</div></div>
+          <div class="res-cell"><div class="lab">Time</div><div class="val" id="res-time">23.22 s</div></div>
+          <div class="res-cell"><div class="lab" id="res-it-lab">Nodes</div><div class="val" id="res-it">644</div></div>
+          <div class="res-cell"><div class="lab">Max violation</div><div class="val" id="res-viol">1.6e−13</div></div>
+          <div class="res-cell verify" id="verify">
+            <button class="ver-btn" id="verify-btn">Verify with HiGHS</button>
+            <div class="ver-out" id="verify-out"><div class="vh">HiGHS 1.15 · 1.45 s</div><div class="v">79.7500</div><div class="ok">✓ same optimum · Δ 1.8e−15</div></div>
+          </div>
+        </div>
+
+        <div class="card insight" id="insight"><div class="ins-h">Crude unloading and charging schedule (8 days)</div><div class="gantt">
+      <div class="g-axis"><span></span><div class="g-ticks"><span style="left:0%;transform:translateX(0%)">day 0</span><span style="left:12.5%;transform:translateX(-50%)">day 1</span><span style="left:25%;transform:translateX(-50%)">day 2</span><span style="left:37.5%;transform:translateX(-50%)">day 3</span><span style="left:50%;transform:translateX(-50%)">day 4</span><span style="left:62.5%;transform:translateX(-50%)">day 5</span><span style="left:75%;transform:translateX(-50%)">day 6</span><span style="left:87.5%;transform:translateX(-50%)">day 7</span><span style="left:100%;transform:translateX(-100%)">day 8</span></div></div><div class="g-lane"><div class="ln">Vessel 1</div><div class="g-track"><div class="g-bar unload" style="left:18.75%;width:25%" title="Vessel 1: unload → Tank 1 · 100">unload → Tank 1 · 100</div></div></div><div class="g-lane"><div class="ln">Vessel 2</div><div class="g-track"><div class="g-bar unload" style="left:50%;width:25%" title="Vessel 2: unload → Tank 2 · 100">unload → Tank 2 · 100</div></div></div><div class="g-lane"><div class="ln">Tank 1</div><div class="g-track"><div class="g-bar transfer" style="left:12.5%;width:6.25%" title="Tank 1: → Charging tank A · 25">→ CT-A 25</div><div class="g-bar transfer" style="left:43.75%;width:1.3749999999999984%" title="Tank 1: → Charging tank A · 6"></div><div class="g-bar transfer" style="left:45.125%;width:23.625%" title="Tank 1: → Charging tank B · 95">→ Charging tank B · 95</div></div></div><div class="g-lane"><div class="ln">Tank 2</div><div class="g-track"><div class="g-bar transfer" style="left:0%;width:12.5%" title="Tank 2: → Charging tank B · 50">→ CT-B 50</div><div class="g-bar transfer" style="left:12.5%;width:4.874999999999999%" title="Tank 2: → Charging tank A · 20"></div><div class="g-bar transfer" style="left:45.125%;width:4.875000000000002%" title="Tank 2: → Charging tank B · 6"></div></div></div><div class="g-lane"><div class="ln">CDU</div><div class="g-track"><div class="g-bar distil" style="left:0%;width:12.5%" title="CDU: runs on blend A · 5">runs on blend A 5</div><div class="g-bar distil" style="left:12.5%;width:32.625%" title="CDU: runs on blend B · 100">runs on blend B · 100</div><div class="g-bar distil" style="left:45.125%;width:54.87500000000001%" title="CDU: runs on blend A · 95">runs on blend A · 95</div></div></div></div>
+      <div class="g-foot"><span><i style="background:#5B8CFF"></i>Unloading</span><span><i style="background:#F28C38"></i>Tank transfer</span><span><i style="background:#2FBF71"></i>CDU charging</span>
+      <span style="margin-left:auto">✓ Published optimum (Lee et al. 1996): <b style="color:var(--green2)">79.75</b> · NIRNAY: <b style="color:var(--saffron2)">79.75</b></span></div></div>
+      </div>
+    </section>
+
+    <!-- ============================== BENCHMARKS ============================== -->
+    <section class="view hidden" id="view-bench">
+      <div class="bench-head">
+        <h2>Measured on public benchmark sets</h2>
+        <p>Every instance solved in its own process, then re-solved by an independent reference. "Solved" means the reference optimum is matched and every constraint holds.</p>
+      </div>
+      <div class="bench-cards" id="bench-cards"></div>
+      <div class="bench-row">
+        <div class="card found">
+          <div class="card-h"><span>What checking everything found in the reference solvers</span></div>
+          <table class="found-t">
+            <tbody><tr><td class="who">HiGHS 1.15.1</td><td>misreads the RHS section of <code>DPKLO1.QPS</code>; drops coefficients below 1e-9 in <code>KSIP</code>, <code>HUESTIS</code></td></tr>
+            <tr><td class="who">NVIDIA cuOpt 26.8</td><td>reports "optimal" 7665 on MIPLIB <code>p0201</code>; the optimum is 7615</td></tr>
+            <tr><td class="who">Clarabel 0.11</td><td>~1e-6 off at default tolerances on several QPs where NIRNAY matches the published optimum</td></tr>
+            <tr><td class="who">HiGHS PDLP</td><td>stops at limit/1000 s whenever a finite time limit is set</td></tr>
+          </tbody></table>
+        </div>
+        <div class="card speed">
+          <div class="card-h"><span>Honest about speed</span></div>
+          <div class="speed-big" id="speed-big">—</div>
+          <p class="muted">slower than HiGHS on Netlib (shifted geometric mean). The iteration loop is compiled; hyper-sparse solves and a Markowitz LU are next.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== SOURCE ============================== -->
+    <section class="view hidden" id="view-source">
+      <div class="src-grid">
+        <div class="card">
+          <div class="card-h"><span>The solver, module by module</span><span class="muted" id="src-total"></span></div>
+          <div class="tree" id="src-tree"></div>
+        </div>
+        <div class="src-right">
+          <div class="card imports">
+            <div class="card-h"><span>Imports scanned in <code>nirnay/</code></span></div>
+            <div id="src-third"></div>
+            <div class="solver-scan" id="src-solvers"></div>
+          </div>
+          <div class="card code">
+            <div class="card-h"><span><code>lp/_simplex_kernels.py</code> · the compiled dual simplex iteration</span></div>
+            <pre id="src-code"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+
+
+</body></html>

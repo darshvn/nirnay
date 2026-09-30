@@ -1,0 +1,130 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NIRNAY Studio</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <div>
+        <div class="name">NIRNAY <em>Studio</em></div>
+        <div class="tag">Indigenous LP · MILP · QP solver · SIH26119</div>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="solve" role="tab">Solve</button>
+      <button class="tab" data-view="bench" role="tab">Benchmarks</button>
+      <button class="tab" data-view="source" role="tab">Source</button>
+    </nav>
+    <div class="pill-sovereign"><span class="dot"></span>No solver library inside</div>
+  </header>
+
+  <main>
+    <!-- ============================== SOLVE ============================== -->
+    <section class="view" id="view-solve">
+      <aside class="shelf" id="shelf"><div class="grp">MRPL scenario</div><button class="item active" data-key="refinery"><div class="t"><span class="kind LP">LP</span>Refinery crude plan</div><div class="s">Crude selection, CDU cuts, FCC and reformer, BS-VI blending</div></button><button class="item" data-key="plan4"><div class="t"><span class="kind MILP">MILP</span>4-month refinery plan</div><div class="s">Crude parcels per month, FCC mode changeovers, product inventories</div></button><button class="item" data-key="unload"><div class="t"><span class="kind MILP">MILP</span>Crude unloading schedule</div><div class="s">Vessels → storage tanks → charging tanks → CDU, sulphur specs</div></button><div class="grp">Scale</div><button class="item" data-key="datt256"><div class="t"><span class="kind LP">LP</span>datt256 · large LP</div><div class="s">11,077 rows · 262,144 columns · 1.5 M nonzeros (MIPLIB 2017 relaxation)</div></button><div class="grp">Benchmarks</div><button class="item" data-key="pilot"><div class="t"><span class="kind LP">LP</span>Netlib pilot</div><div class="s">Notoriously ill-conditioned economic planning model</div></button><button class="item" data-key="p0201"><div class="t"><span class="kind MILP">MILP</span>MIPLIB p0201</div><div class="s">201 binary variables, classic MIPLIB 3 instance</div></button><button class="item" data-key="qship"><div class="t"><span class="kind QP">QP</span>Maros–Mészáros QSHIP04S</div><div class="s">Convex quadratic program</div></button></aside>
+
+      <div class="work">
+        <div class="card model-card" id="model-card">
+          <div class="mc-left">
+            <div class="mc-kicker"><span class="kind LP" id="mc-kind">LP</span><span id="mc-group">MRPL scenario</span></div>
+            <h1 id="mc-title">Refinery crude plan</h1>
+            <p id="mc-sub" class="mc-sub">Crude selection, CDU cuts, FCC and reformer, BS-VI blending</p>
+            <p id="mc-src" class="mc-src">US DOE crude assays · BIS BS-VI specs · PPAC 2024-25 prices · MRPL CDU capacities</p>
+          </div>
+          <div class="mc-stats" id="mc-stats"><div class="stat"><div class="n">93</div><div class="l">Rows</div></div><div class="stat"><div class="n">188</div><div class="l">Columns</div></div><div class="stat"><div class="n">726</div><div class="l">Nonzeros</div></div><div class="stat"><div class="n">LP</div><div class="l">Type</div></div></div>
+        </div>
+
+        <div class="runbar">
+          <div class="engines" id="engines"><button class="eng active" data-eng="simplex">Dual simplex</button><button class="eng" data-eng="ipm">Interior point</button><button class="eng" data-eng="pdlp">PDLP · CPU</button><button class="eng" data-eng="pdlp-gpu">PDLP · GPU</button></div>
+          <button class="solve" id="solve-btn"><span class="solve-ic"></span><span id="solve-label">Solve</span></button>
+        </div>
+
+        <div class="live">
+          <div class="card chart-card">
+            <div class="card-h"><span id="chart-title">Dual simplex: primal infeasibility → 0</span><span class="legend" id="chart-legend"><span><i style="background:var(--blue)"></i>Primal infeasibility</span></span></div>
+            <svg id="chart" viewBox="0 0 640 260" preserveAspectRatio="none"><line x1="58" x2="622" y1="230" y2="230" stroke="#243052" stroke-width="1"></line><text x="50" y="234" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">1e−15</text><line x1="58" x2="622" y1="194" y2="194" stroke="#243052" stroke-width="1"></line><text x="50" y="198" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">1e−12</text><line x1="58" x2="622" y1="158.00000000000003" y2="158.00000000000003" stroke="#243052" stroke-width="1"></line><text x="50" y="162.00000000000003" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">1e−8</text><line x1="58" x2="622" y1="122" y2="122" stroke="#243052" stroke-width="1"></line><text x="50" y="126" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">1e−5</text><line x1="58" x2="622" y1="86.00000000000001" y2="86.00000000000001" stroke="#243052" stroke-width="1"></line><text x="50" y="90.00000000000001" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">1e−2</text><line x1="58" x2="622" y1="49.99999999999999" y2="49.99999999999999" stroke="#243052" stroke-width="1"></line><text x="50" y="53.99999999999999" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">1e2</text><line x1="58" x2="622" y1="14" y2="14" stroke="#243052" stroke-width="1"></line><text x="50" y="18" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">1e5</text><text x="622" y="252" fill="#7C88A6" font-size="11" text-anchor="end" font-family="Inter">162 iterations</text><text x="58" y="252" fill="#7C88A6" font-size="11" font-family="Inter">10</text><defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F28C38" stop-opacity=".28"></stop><stop offset="1" stop-color="#F28C38" stop-opacity="0"></stop></linearGradient></defs><path d="M58.0,48.8L95.1,50.6L132.2,51.8L169.3,53.5L206.4,56.4L243.5,52.0L265.8,222.1L302.9,16.5L340.0,16.9L377.1,16.9L388.2,15.2L391.9,15.6L429.1,17.0L466.2,23.8L503.3,16.4L540.4,22.0L577.5,30.6L614.6,33.0L622.0,179.5" fill="none" stroke="var(--blue)" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round" class="series s-b"></path><circle cx="622" cy="179.54134313429424" r="4" fill="var(--blue)" class="dot d-b"></circle><line x1="265.7894736842105" x2="265.7894736842105" y1="14" y2="230" stroke="#7C88A6" stroke-dasharray="4 4"></line><text x="257.7894736842105" y="26" fill="#AEB8D0" font-size="11" text-anchor="end" font-family="Inter">phase 1</text><text x="273.7894736842105" y="26" fill="#AEB8D0" font-size="11" font-family="Inter">phase 2</text></svg>
+          </div>
+          <div class="card log-card">
+            <div class="card-h"><span>Solver log</span><span class="muted" id="log-engine">Dual simplex</span></div>
+            <div class="log" id="log"><div class="l ">dual      76  obj -4.7174252817e+06  pinf 5.91e+04</div><div class="l ">dual      86  obj -4.5257054352e+06  pinf 5.44e+04</div><div class="l ">dual      96  obj -4.4261072197e+06  pinf 5.44e+04</div><div class="l ">dual      99  obj -2.6105588836e+06  pinf 7.74e+04</div><div class="l ">dual     100  obj -2.6105588531e+06  pinf 7.15e+04</div><div class="l ">dual     110  obj -8.4230527385e+05  pinf 5.32e+04</div><div class="l ">dual     120  obj -6.5811529336e+05  pinf 1.25e+04</div><div class="l ">dual     130  obj -4.7750665243e+05  pinf 5.95e+04</div><div class="l ">dual     140  obj -4.4503566456e+05  pinf 1.81e+04</div><div class="l ">dual     150  obj -2.9755888456e+05  pinf 2.90e+03</div><div class="l ">dual     160  obj -2.9065557132e+05  pinf 1.74e+03</div><div class="l ">dual     162  obj -2.9063675383e+05  pinf 4.70e-11</div><div class="l ok">Dual simplex: optimal, objective -290,643.287792 in 9 ms</div></div>
+          </div>
+        </div>
+
+        <div class="result optimal" id="result">
+          <div class="res-status" id="res-status">OPTIMAL</div>
+          <div class="res-cell big"><div class="lab" id="res-obj-lab">Gross margin</div><div class="val" id="res-obj">$ 290.64 M / yr</div></div>
+          <div class="res-cell"><div class="lab">Time</div><div class="val" id="res-time">9 ms</div></div>
+          <div class="res-cell"><div class="lab" id="res-it-lab">Iterations</div><div class="val" id="res-it">162</div></div>
+          <div class="res-cell"><div class="lab">Max violation</div><div class="val" id="res-viol">3.6e−12</div></div>
+          <div class="res-cell verify" id="verify">
+            <button class="ver-btn" id="verify-btn">Verify with HiGHS</button>
+            <div class="ver-out" id="verify-out"><div class="vh">HiGHS 1.15 · 3 ms</div><div class="v">-290,643.2878</div><div class="ok">✓ same optimum · Δ 2.2e−15</div></div>
+          </div>
+        </div>
+
+        <div class="card insight" id="insight"><div class="ins-grid">
+      <div><div class="ins-h">Crude slate chosen</div><div class="bars "><div class="b"><span>Bryan Mound Sour</span><div class="track"><div class="fill" style="width:100.0%"></div></div><span class="num">11,223</span></div><div class="b"><span>Big Hill Sweet</span><div class="track"><div class="fill" style="width:10.0%"></div></div><span class="num">1,122</span></div></div>
+        <div class="ins-note">thousand m³ per year, across the three CDUs</div></div>
+      <div><div class="ins-h">Products made</div><div class="bars green"><div class="b"><span>FO</span><div class="track"><div class="fill" style="width:100.0%"></div></div><span class="num">3,660</span></div><div class="b"><span>HSD</span><div class="track"><div class="fill" style="width:94.3%"></div></div><span class="num">3,452</span></div><div class="b"><span>NAPHTHA</span><div class="track"><div class="fill" style="width:65.2%"></div></div><span class="num">2,385</span></div><div class="b"><span>MS91</span><div class="track"><div class="fill" style="width:54.8%"></div></div><span class="num">2,007</span></div><div class="b"><span>MS95</span><div class="track"><div class="fill" style="width:13.2%"></div></div><span class="num">483</span></div><div class="b"><span>LPG</span><div class="track"><div class="fill" style="width:4.5%"></div></div><span class="num">164</span></div></div></div>
+      <div><div class="ins-h">What more capacity is worth (shadow prices)</div>
+        <div class="duals"><div class="d"><span>Reformer capacity</span><b>$ 585.7 k / unit</b></div><div class="d"><span>FCC capacity (high)</span><b>$ 521.2 k / unit</b></div><div class="d"><span>FCC capacity (low)</span><b>$ 500.8 k / unit</b></div><div class="d"><span>MS 91 market</span><b>$ 116.9 k / unit</b></div><div class="d"><span>MS 95 market</span><b>$ 115.9 k / unit</b></div><div class="d"><span>MS 95 octane spec</span><b>$ 0.2 k / unit</b></div></div>
+        <div class="ins-note">Row duals recovered exactly through presolve: the value of one more unit of each limit.</div></div>
+    </div></div>
+      </div>
+    </section>
+
+    <!-- ============================== BENCHMARKS ============================== -->
+    <section class="view hidden" id="view-bench">
+      <div class="bench-head">
+        <h2>Measured on public benchmark sets</h2>
+        <p>Every instance solved in its own process, then re-solved by an independent reference. "Solved" means the reference optimum is matched and every constraint holds.</p>
+      </div>
+      <div class="bench-cards" id="bench-cards"></div>
+      <div class="bench-row">
+        <div class="card found">
+          <div class="card-h"><span>What checking everything found in the reference solvers</span></div>
+          <table class="found-t">
+            <tbody><tr><td class="who">HiGHS 1.15.1</td><td>misreads the RHS section of <code>DPKLO1.QPS</code>; drops coefficients below 1e-9 in <code>KSIP</code>, <code>HUESTIS</code></td></tr>
+            <tr><td class="who">NVIDIA cuOpt 26.8</td><td>reports "optimal" 7665 on MIPLIB <code>p0201</code>; the optimum is 7615</td></tr>
+            <tr><td class="who">Clarabel 0.11</td><td>~1e-6 off at default tolerances on several QPs where NIRNAY matches the published optimum</td></tr>
+            <tr><td class="who">HiGHS PDLP</td><td>stops at limit/1000 s whenever a finite time limit is set</td></tr>
+          </tbody></table>
+        </div>
+        <div class="card speed">
+          <div class="card-h"><span>Honest about speed</span></div>
+          <div class="speed-big" id="speed-big">—</div>
+          <p class="muted">slower than HiGHS on Netlib (shifted geometric mean). The iteration loop is compiled; hyper-sparse solves and a Markowitz LU are next.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== SOURCE ============================== -->
+    <section class="view hidden" id="view-source">
+      <div class="src-grid">
+        <div class="card">
+          <div class="card-h"><span>The solver, module by module</span><span class="muted" id="src-total"></span></div>
+          <div class="tree" id="src-tree"></div>
+        </div>
+        <div class="src-right">
+          <div class="card imports">
+            <div class="card-h"><span>Imports scanned in <code>nirnay/</code></span></div>
+            <div id="src-third"></div>
+            <div class="solver-scan" id="src-solvers"></div>
+          </div>
+          <div class="card code">
+            <div class="card-h"><span><code>lp/_simplex_kernels.py</code> · the compiled dual simplex iteration</span></div>
+            <pre id="src-code"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+
+
+</body></html>

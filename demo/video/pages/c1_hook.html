@@ -1,0 +1,67 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Hook</title>
+<style>
+@font-face { font-family: Inter; font-weight: 400; src: url(fonts/inter-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: Inter; font-weight: 500; src: url(fonts/inter-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: Inter; font-weight: 600; src: url(fonts/inter-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: Inter; font-weight: 700; src: url(fonts/inter-latin-700-normal.woff2) format("woff2"); }
+@font-face { font-family: Inter; font-weight: 800; src: url(fonts/inter-latin-800-normal.woff2) format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 400; src: url(fonts/jetbrains-mono-latin-400-normal.woff2) format("woff2"); }
+:root { --bg:#0B1020; --bg2:#0F1629; --card:#131B31; --card2:#172039; --line:#243052; --line2:#2E3B63; --ink:#E8ECF6;
+  --ink2:#AEB8D0; --muted:#7C88A6; --saffron:#F28C38; --saffron2:#FFB066; --green:#2FBF71; --green2:#7BE0A6;
+  --blue:#5B8CFF; --violet:#A27BFF; }
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; }
+body { background: radial-gradient(1400px 800px at 80% -10%, #1B2A5A 0%, rgba(27,42,90,0) 60%),
+  radial-gradient(1000px 700px at -10% 110%, #2A1E3E 0%, rgba(42,30,62,0) 55%), var(--bg);
+  color: var(--ink); font: 400 28px/1.35 Inter, sans-serif; -webkit-font-smoothing: antialiased; }
+.stage { position: absolute; inset: 0; }
+.grid { position: absolute; inset: -200px; background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+  linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px); background-size: 64px 64px; }
+.mark { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mark span { border-radius: 8px; background: var(--line2); }
+.mark span:nth-child(1) { background: var(--saffron); } .mark span:nth-child(4) { background: var(--green); }
+.card { background: linear-gradient(180deg, var(--card) 0%, #111831 100%); border: 1px solid var(--line); border-radius: 22px; }
+.kicker { font: 700 22px Inter; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.saffron { color: var(--saffron2); } .green { color: var(--green2); } .muted { color: var(--muted); }
+
+.scene { position: absolute; left: 170px; right: 170px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; }
+.big { font: 800 92px/1.08 Inter; letter-spacing: -.02em; }
+.big.dim { color: var(--ink2); font-weight: 700; margin-top: 18px; }
+.big b { font-weight: 800; }
+.chips { display: flex; gap: 22px; margin-top: 70px; }
+.chip { display: flex; align-items: center; gap: 16px; font: 600 34px Inter; padding: 22px 30px; border-radius: 18px;
+  background: var(--card); border: 1px solid var(--line2); box-shadow: 0 20px 50px rgba(0,0,0,.35); }
+.chip i { width: 16px; height: 16px; border-radius: 50%; display: block; }
+.words { display: flex; flex-direction: column; gap: 6px; margin-top: 24px; }
+.words span { font: 800 120px/1.05 Inter; letter-spacing: -.03em; }
+.words span:nth-child(3) { color: var(--saffron2); }
+.brands { margin-top: 44px; font: 600 34px Inter; color: var(--muted); letter-spacing: .04em; }
+.built { font: 700 58px Inter; color: var(--ink2); }
+.wordmark { display: flex; align-items: center; gap: 40px; margin-top: 40px; }
+.mark.m { width: 150px; height: 150px; gap: 14px; } .mark.m span { border-radius: 14px; }
+.name { font: 800 150px/1 Inter; letter-spacing: .06em; }
+.deva { font: 500 38px Inter; color: var(--muted); margin-top: 8px; }
+.tagline { margin-top: 44px; font: 600 40px Inter; color: var(--ink); }
+.sih { margin-top: 16px; font: 500 30px Inter; color: var(--muted); }
+</style></head><body><div class="stage"><div class="grid"></div>
+<div id="a" class="scene">
+  <div class="big" id="l1"><span>Every</span> <span>barrel</span> <span>a</span> <span>refinery</span> <span>processes</span></div>
+  <div class="big dim" id="l2">is decided by an <b class="saffron">optimisation solver.</b></div>
+  <div class="chips">
+    <div class="chip" id="c1"><i style="background:var(--saffron)"></i>Which crudes to buy</div>
+    <div class="chip" id="c2"><i style="background:var(--green)"></i>How to blend them</div>
+    <div class="chip" id="c3"><i style="background:var(--blue)"></i>When to run each unit</div>
+  </div>
+</div>
+<div id="b" class="scene">
+  <div class="kicker">In India, those solvers are</div>
+  <div class="words"><span id="w1">foreign.</span><span id="w2">closed.</span><span id="w3">licensed by the seat.</span></div>
+  <div class="brands" id="brands">CPLEX&nbsp;&nbsp;·&nbsp;&nbsp;Gurobi&nbsp;&nbsp;·&nbsp;&nbsp;Xpress</div>
+</div>
+<div id="c" class="scene">
+  <div class="built" id="built">So we built one.</div>
+  <div class="wordmark" id="wm"><div class="mark m"><span></span><span></span><span></span><span></span></div>
+    <div><div class="name">NIRNAY</div><div class="deva">निर्णय · decision</div></div></div>
+  <div class="tagline" id="tag">An indigenous LP · MILP · QP solver, written from the mathematics up</div>
+  <div class="sih" id="sih">Smart India Hackathon 2026 · SIH26119 · MRPL</div>
+</div></div></body></html>
