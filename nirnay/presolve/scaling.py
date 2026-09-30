@@ -51,21 +51,32 @@ def compute_scaling(A: CSC, passes: int = 8, tol: float = 0.9):
     def current():
         return base * R[A.rowidx] * C[cols]
 
+    # entries below 1e-12 of the largest in their row or column carry no information at double
+    # precision, but a geometric mean would let them dominate: KSIP has 1.2e-30 next to 1.0,
+    # and scaling by it wrecks every other entry. They are left out of the min.
+    def extremes(v, idx, size):
+        mx = np.zeros(size)
+        np.maximum.at(mx, idx, v)
+        mn = np.full(size, np.inf)
+        keep = v >= 1e-12 * mx[idx]
+        np.minimum.at(mn, idx[keep], v[keep])
+        return mx, mn
+
     prev = np.inf
     for _ in range(passes):
         v = current()
-        spread = v.max() / v.min()
+        mxr, _ = extremes(v, A.rowidx, A.m)
+        sig = v[v >= 1e-12 * mxr[A.rowidx]]
+        spread = sig.max() / sig.min()
         if spread > tol * prev and np.isfinite(prev):
             break
         prev = spread
         # rows
-        mx = np.zeros(A.m); mn = np.full(A.m, np.inf)
-        np.maximum.at(mx, A.rowidx, v); np.minimum.at(mn, A.rowidx, v)
+        mx, mn = extremes(v, A.rowidx, A.m)
         has = mx > 0
         R[has] /= np.sqrt(mx[has] * mn[has])
         v = current()
-        mx = np.zeros(A.n); mn = np.full(A.n, np.inf)
-        np.maximum.at(mx, cols, v); np.minimum.at(mn, cols, v)
+        mx, mn = extremes(v, cols, A.n)
         has = mx > 0
         C[has] /= np.sqrt(mx[has] * mn[has])
     # equilibrate columns

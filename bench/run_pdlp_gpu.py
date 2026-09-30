@@ -2,9 +2,12 @@
 
 For every instance: NIRNAY PDLP on the CPU, NIRNAY PDLP on the GPU, both at relative KKT
 tolerance --tol, and HiGHS as the comparator in up to three modes:
-  * highs      HiGHS's default LP solve (simplex / IPM with crossover): the reference objective
+  * highs      HiGHS interior point without crossover at its default (1e-8) tolerances: the
+               reference objective and HiGHS's high-accuracy time. (HiGHS's default dual simplex
+               and IPM+crossover need far longer than the limits used here on several of these
+               degenerate instances, e.g. qap15, so they are not the reference.)
   * highs-ipm  HiGHS IPM without crossover at the same tolerance (the nearest like-for-like run)
-  * highs-pdlp HiGHS's own PDLP (a CPU port of cuPDLP-C) at the same tolerance (optional)
+  * highs-pdlp HiGHS's own PDLP (a CPU port of cuPDLP-C) at the same tolerance
 HiGHS is used here only as a comparator; the solver never imports it.
 
 MIP instances (MIPLIB 2017) are run as their LP relaxations by every solver: NIRNAY PDLP drops
@@ -73,9 +76,15 @@ def _highs(path, mode, tol, limit, q):
             if h.setOptionValue(k, v) != highspy.HighsStatus.kOk:
                 raise ValueError(f"HiGHS rejected option {k}={v}")
         setopt("output_flag", False)
-        setopt("time_limit", float(limit))
+        if mode != "highs-pdlp":
+            # HiGHS 1.15 PDLP stops after a handful of iterations with "Time limit reached" as
+            # soon as any time_limit is set; the wall-clock limit is enforced by the caller instead
+            setopt("time_limit", float(limit))
         setopt("solve_relaxation", True)          # the MIP files are benchmarked as LP relaxations
-        if mode == "highs-ipm":
+        if mode == "highs":
+            setopt("solver", "ipm")
+            setopt("run_crossover", "off")
+        elif mode == "highs-ipm":
             setopt("solver", "ipm")
             setopt("run_crossover", "off")
             setopt("ipm_optimality_tolerance", tol)
@@ -101,7 +110,7 @@ def _in_process(target, args, limit):
     p = mp.Process(target=target, args=args + (q,))
     t = time.perf_counter()
     p.start()
-    p.join(limit + 120)
+    p.join(limit + 60)
     if p.is_alive():
         p.terminate()
         return {"status": "timeout", "time": time.perf_counter() - t}
@@ -170,7 +179,11 @@ def main():
                 row[f"{mo}_time"] = r.get("time", np.nan)
                 print(f"  {name:14s} {mo:10s} {r['status']:16s} obj {r.get('obj', np.nan):+.10e} "
                       f"t {r.get('time', np.nan):8.2f}s", flush=True)
-            ref = res.get("highs", {}).get("obj", np.nan)
+            ref = np.nan
+            for mo in ("highs", "highs-ipm"):          # the most accurate finished HiGHS run
+                if res.get(mo, {}).get("status") in ("Optimal", "Unknown") and np.isfinite(res[mo].get("obj", np.nan)):
+                    ref = res[mo]["obj"]
+                    break
             for mo in ("cpu", "gpu"):
                 if mo in res:
                     r = res[mo]

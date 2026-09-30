@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import csv
 import shutil
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -21,9 +22,22 @@ from run_lp import run_one
 
 
 def reference(path, limit):
-    import clarabel
+    """Clarabel's optimum for the model as HiGHS's parser reads it. On the few files where the
+    two parsers disagree (tools/qps_compare.py) the reference falls back to NIRNAY's reading and
+    says so in ref_status, since then the HiGHS reading is the wrong model (DPKLO1: HiGHS
+    misparses the RHS section; HUESTIS, HUES-MOD, KSIP: HiGHS drops coefficients below 1e-9)."""
     import highspy
     import scipy.sparse as sp
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+    from qps_compare import compare
+    diff = compare(path)
+    if diff:
+        from nirnay.io.mps import read_mps
+        mm = read_mps(path)
+        A = sp.csc_matrix((mm.A.vals, mm.A.rowidx, mm.A.colptr), shape=(mm.m, mm.n))
+        Q = sp.csc_matrix((mm.Q.vals, mm.Q.rowidx, mm.Q.colptr), shape=(mm.n, mm.n)) if mm.Q is not None else sp.csc_matrix((mm.n, mm.n))
+        st, obj, el = _clarabel(mm.c, sp.triu(Q).tocsc(), A, mm.rl, mm.ru, mm.lb, mm.ub, 1.0, limit)
+        return f"{st} (NIRNAY reading; HiGHS reads {', '.join(d.split(' ')[0].split('[')[0] for d in diff)} differently)",             mm.sense * (obj + mm.c0), el
     tmp = Path(tempfile.gettempdir()) / (Path(path).stem + ".mps")
     shutil.copyfile(path, tmp)
     h = highspy.Highs()
@@ -37,13 +51,23 @@ def reference(path, limit):
     c = np.array(lp.col_cost_)
     sense = -1.0 if lp.sense_ == highspy.ObjSense.kMaximize else 1.0
     if hess.dim_ > 0:
+        # HiGHS keeps the lower triangle (kTriangular); Clarabel wants the upper triangle
         H = sp.csc_matrix((np.array(hess.value_), np.array(hess.index_), np.array(hess.start_)), shape=(n, n))
-        H = H + sp.triu(H.T, 1) if (sp.tril(H, -1).nnz and not sp.triu(H, 1).nnz) else H
-        P = sp.triu(H + H.T - sp.diags(H.diagonal())) if not (sp.tril(H, -1).nnz and sp.triu(H, 1).nnz) else sp.triu(H)
+        P = sp.triu(H.T).tocsc()
     else:
         P = sp.csc_matrix((n, n))
     rl, ru = np.array(lp.row_lower_), np.array(lp.row_upper_)
     lb, ub = np.array(lp.col_lower_), np.array(lp.col_upper_)
+    st, obj, el = _clarabel(sense * c, sense * P, A, rl, ru, lb, ub, sense, limit)
+    return st, sense * obj + lp.offset_, el
+
+
+def _clarabel(c, P, A, rl, ru, lb, ub, sense, limit):
+    """min c'x + 1/2 x'Px  s.t. rl <= Ax <= ru, lb <= x <= ub, with Clarabel. Returns the
+    status, the objective without constant, and the solve time."""
+    import clarabel
+    import scipy.sparse as sp
+    n = len(c)
     big = 1e20
     blocks, rhs, zero_n, nonneg_n = [], [], 0, 0
     I = sp.identity(n, format="csc")
@@ -70,10 +94,17 @@ def reference(path, limit):
     st = clarabel.DefaultSettings()
     st.verbose = False
     st.time_limit = float(limit)
+    # at its default 1e-8 tolerances Clarabel's objective is off by ~1e-6 relative on several
+    # instances where NIRNAY matches the published optimum (QBEACONF, QSHARE1B, GOULDQP3, ...);
+    # a reference must be tighter than the tolerance it is used to check
+    st.tol_gap_abs = st.tol_gap_rel = 1e-11
+    st.tol_feas = 1e-11
+    st.tol_ktratio = 1e-9
+    st.max_iter = 400
     t = time.perf_counter()
-    sol = clarabel.DefaultSolver(sp.csc_matrix(sense * P), sense * c, Aall, b, cones, st).solve()
+    sol = clarabel.DefaultSolver(sp.csc_matrix(P), np.asarray(c, dtype=float), Aall, b, cones, st).solve()
     el = time.perf_counter() - t
-    obj = sense * sol.obj_val + lp.offset_ if sol.x is not None else np.nan
+    obj = sol.obj_val if sol.x is not None else np.nan
     return str(sol.status), obj, el
 
 

@@ -67,7 +67,8 @@ class _KKT:
 
 
 def solve(model: Model, tol: float = 1e-8, max_iter: int = 200, scale: bool = True,
-          time_limit: float = np.inf, verbose: bool = False) -> Result:
+          time_limit: float = np.inf, verbose: bool = False, start_floor: float = 1.0,
+          nb_scale: float = 1e12, common_step: bool = True) -> Result:
     t0 = time.perf_counter()
     if model.is_mip:
         model = _relax(model)
@@ -115,13 +116,18 @@ def solve(model: Model, tol: float = 1e-8, max_iter: int = 200, scale: bool = Tr
     sign = np.concatenate([-np.ones(nB), np.ones(mB)])
     reg_p, reg_free, reg_d = 1e-10, 1e-8, 1e-10
 
+    solve_err = [0.0]
+
     def kkt_solve(vals_reg, vals_true, rhs):
         sol = ldl.solve(rhs)
+        scale = 1 + np.max(np.abs(rhs))
         for _ in range(3):
             r = rhs - K.matvec(vals_true, sol)
-            if np.max(np.abs(r)) <= 1e-13 * (1 + np.max(np.abs(rhs))):
+            if np.max(np.abs(r)) <= 1e-13 * scale:
                 break
             sol += ldl.solve(r)
+        r = rhs - K.matvec(vals_true, sol)
+        solve_err[0] = max(solve_err[0], float(np.max(np.abs(r), initial=0.0)) / scale)
         return sol
 
     # ---- starting point ----
@@ -146,6 +152,14 @@ def solve(model: Model, tol: float = 1e-8, max_iter: int = 200, scale: bool = Tr
         w = np.where(X, w + 0.5 * xz / sz, 0.0)
         z = np.where(L, z + 0.5 * xz / sx, 0.0)
         s = np.where(X, s + 0.5 * xz / sx, 0.0)
+    # keep the start well inside the cone: when Mehrotra's heuristic lands on a point with tiny
+    # complementarity but large residuals (YAO: mu 2e-6 against dual infeasibility 0.5) the
+    # iterates hug the boundary and crawl. A floor proportional to the residual scale fixes it.
+    floor = start_floor * max(1.0, float(np.max(np.abs(b), initial=0.0)) / nb_scale) if start_floor else 0.0
+    x = np.where(L, np.maximum(x, floor), x)
+    z = np.where(L, np.maximum(z, floor), z)
+    w = np.where(X, np.maximum(w, floor), 0.0)
+    s = np.where(X, np.maximum(s, floor), 0.0)
     x = np.where(L & (x <= 0), 1.0, x)
     z = np.where(L & (z <= 0), 1.0, z)
     w = np.where(X & (w <= 0), 1.0, w)
@@ -169,7 +183,9 @@ def solve(model: Model, tol: float = 1e-8, max_iter: int = 200, scale: bool = Tr
         dobj = b @ y - U[X] @ s[X] - 0.5 * xQx
         pinf = inf_norm(rb) / nb + inf_norm(ru) / nU
         dinf = inf_norm(rc) / nc
-        gap = abs(pobj - dobj) / (1 + abs(pobj))
+        # relative to the objective the user sees (constant included): with a large constant and
+        # an optimum near zero (HS268, GOULDQP3) a gap relative to pobj alone is far too loose
+        gap = abs(pobj - dobj) / (1 + min(abs(pobj), abs(pobj + c0)))
         history.append((it, pobj, dobj, pinf, dinf, mu))
         if verbose:
             print(f"{it:4d}  {pobj + c0:+.10e} {dobj + c0:+.10e}  p {pinf:.1e} d {dinf:.1e} g {gap:.1e} mu {mu:.1e}")
@@ -216,14 +232,17 @@ def solve(model: Model, tol: float = 1e-8, max_iter: int = 200, scale: bool = Tr
             return dx, dy, dz, dw, ds
 
         # factor; if the direction comes back non-finite, regularise harder and refactor
+        # a factorisation that lost too much to pivot flooring gives a direction that is finite
+        # but wrong (QRECIPE: |dx| ~ 1e46); the refined residual shows it, so check it too
         boost = 1.0
-        for _attempt in range(4):
+        for _attempt in range(5):
             vals_reg = K.values(dbar + np.where(free, reg_free, reg_p) * boost, np.full(mB, reg_d * boost))
             ldl.factor(vals_reg, sign)
+            solve_err[0] = 0.0
             dx, dy, dz, dw, ds = direction(np.where(L, -x * z, 0.0), np.where(X, -w * s, 0.0))
-            if np.all(np.isfinite(dx)) and np.all(np.isfinite(dy)):
+            if np.all(np.isfinite(dx)) and np.all(np.isfinite(dy)) and solve_err[0] < 1e-6:
                 break
-            boost *= 1e3
+            boost *= 1e2
         else:
             status = "numerical_error"
             break
@@ -236,7 +255,7 @@ def solve(model: Model, tol: float = 1e-8, max_iter: int = 200, scale: bool = Tr
         dx, dy, dz, dw, ds = direction(rxz, rws)
         ap = min(_max_step(x[L], dx[L]), _max_step(w[X], dw[X]))
         ad = min(_max_step(z[L], dz[L]), _max_step(s[X], ds[X]))
-        if nQ:
+        if nQ and common_step:
             # with Q the primal and dual steps are coupled through Q dx; take one common step
             ap = ad = min(ap, ad)
         eta = 0.9995
