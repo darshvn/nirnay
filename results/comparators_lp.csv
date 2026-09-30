@@ -1,0 +1,213 @@
+instance,solver,platform,status,objective,ref_objective,rel_err,bound,gap,time,iterations,nodes,tolerance_note,raw_status
+afiro,cbc,WSL2 (CPU),optimal,-464.7531429,-464.7531429,8.61e-11,,,0.022476892,,,,OPTIMAL
+afiro,clarabel,Windows 11 (CPU),optimal,-464.7531424,-464.7531429,9.90e-10,,,0.000599699968,8,,1e-8,Solved
+afiro,cuopt,WSL2 + RTX 3050 GPU,optimal,-464.753143,-464.7531429,3.01e-10,,,0.241,20,,,Optimal
+afiro,cuopt-barrier,WSL2 + RTX 3050 GPU,optimal,-464.753128,-464.7531429,3.20e-08,,,1.649,14,,,Optimal
+afiro,cuopt-dualsimplex,WSL2 + RTX 3050 GPU,optimal,-464.753143,-464.7531429,3.01e-10,,,0.15,15,,,Optimal
+afiro,cuopt-pdlp,WSL2 + RTX 3050 GPU,optimal,-464.783238,-464.7531429,6.48e-05,,,0.97,480,,1e-4 rel,Optimal
+afiro,glpk,Windows 11 (CPU),optimal,-464.7531429,-464.7531429,8.61e-11,,,0.0002812000457,10,,,ret=0 status=5
+afiro,glpk-interior,Windows 11 (CPU),optimal,-464.7531425,-464.7531429,7.75e-10,,,0.0002683000057,,,1e-8 (approx),ret=0 ipt_status=5
+afiro,highs,Windows 11 (CPU),optimal,-464.7531429,-464.7531429,8.61e-11,,,0.001877400035,6,,,Optimal
+afiro,highs-hipdlp,Windows 11 (CPU),optimal,-464.7531635,-464.7531429,4.44e-08,,,0.001597900002,640,,1e-7 rel,Optimal
+afiro,highs-ipm,Windows 11 (CPU),optimal,-464.7531429,-464.7531429,8.61e-11,,,0.002587199968,7,,,Optimal
+afiro,highs-pdlp,Windows 11 (CPU),optimal,-464.7532057,-464.7531429,1.35e-07,,,0.003600800002,320,,"1e-7 rel (cuPDLP-C); run with no time_limit (HiGHS 1.15.1 cuPDLP-C timer bug), hard kill 120 s",Optimal
+afiro,highs-simplex,Windows 11 (CPU),optimal,-464.7531429,-464.7531429,8.61e-11,,,0.001760400017,6,,,Optimal
+afiro,ortools-clp,Windows 11 (CPU),optimal,-464.7531429,-464.7531429,8.61e-11,,,0.0009378999821,5,,,OPTIMAL
+afiro,ortools-glop,Windows 11 (CPU),optimal,-464.7531429,-464.7531429,8.61e-11,,,0.001133800019,5,,,OPTIMAL
+afiro,ortools-pdlp,Windows 11 (CPU),optimal,-464.7531569,-464.7531429,3.02e-08,-464.7529964,,0.001795600052,384,,1e-6 rel,TERMINATION_REASON_OPTIMAL
+afiro,ortools-pdlp-tight,Windows 11 (CPU),optimal,-464.753144,-464.7531429,2.45e-09,-464.7531453,,0.01734269998,512,,1e-8 rel,TERMINATION_REASON_OPTIMAL
+afiro,osqp,Windows 11 (CPU),optimal,-464.3355048,-464.7531429,8.99e-04,,,0.0003285999992,300,,1e-3 abs/rel,solved
+afiro,osqp-tight,Windows 11 (CPU),optimal,-464.7537022,-464.7531429,1.20e-06,,,0.001330400002,525,,1e-6 abs/rel,solved
+afiro,scip,Windows 11 (CPU),optimal,-464.7531429,-464.7531429,8.61e-11,-464.7531429,0,0.002136200026,11,1,,optimal
+adlittle,cbc,WSL2 (CPU),optimal,225494.9632,225494.9632,1.77e-10,,,0.007404752003,,,,OPTIMAL
+adlittle,clarabel,Windows 11 (CPU),optimal,225494.9633,225494.9632,6.21e-10,,,0.00123330002,12,,1e-8,Solved
+adlittle,cuopt,WSL2 + RTX 3050 GPU,optimal,225494.963,225494.9632,7.10e-10,,,0.304,93,,,Optimal
+adlittle,cuopt-barrier,WSL2 + RTX 3050 GPU,optimal,225494.99,225494.9632,1.19e-07,,,2.392,21,,,Optimal
+adlittle,cuopt-dualsimplex,WSL2 + RTX 3050 GPU,optimal,225494.963,225494.9632,7.10e-10,,,0.15,103,,,Optimal
+adlittle,cuopt-pdlp,WSL2 + RTX 3050 GPU,optimal,225479.759,225494.9632,6.74e-05,,,1.017,4800,,1e-4 rel,Optimal
+adlittle,glpk,Windows 11 (CPU),optimal,225494.9632,225494.9632,1.77e-10,,,0.001073200023,86,,,ret=0 status=5
+adlittle,glpk-interior,Windows 11 (CPU),optimal,225494.9635,225494.9632,1.51e-09,,,0.0006257000496,,,1e-8 (approx),ret=0 ipt_status=5
+adlittle,highs,Windows 11 (CPU),optimal,225494.9632,225494.9632,1.77e-10,,,0.003131400037,87,,,Optimal
+adlittle,highs-hipdlp,Windows 11 (CPU),optimal,225494.9222,225494.9632,1.82e-07,,,0.01177670003,5440,,1e-7 rel,Optimal
+adlittle,highs-ipm,Windows 11 (CPU),optimal,225494.9632,225494.9632,1.77e-10,,,0.005307999963,15,,,Optimal
+adlittle,highs-pdlp,Windows 11 (CPU),optimal,225494.9386,225494.9632,1.09e-07,,,0.02926719998,7200,,"1e-7 rel (cuPDLP-C); run with no time_limit (HiGHS 1.15.1 cuPDLP-C timer bug), hard kill 120 s",Optimal
+adlittle,highs-simplex,Windows 11 (CPU),optimal,225494.9632,225494.9632,1.77e-10,,,0.003776500002,87,,,Optimal
+adlittle,ortools-clp,Windows 11 (CPU),optimal,225494.9632,225494.9632,1.77e-10,,,0.001027200022,72,,,OPTIMAL
+adlittle,ortools-glop,Windows 11 (CPU),optimal,225494.9632,225494.9632,1.77e-10,,,0.002165200014,69,,,OPTIMAL
+adlittle,ortools-pdlp,Windows 11 (CPU),optimal,225494.75,225494.9632,9.45e-07,225495,,0.02059580002,4352,,1e-6 rel,TERMINATION_REASON_OPTIMAL
+adlittle,ortools-pdlp-tight,Windows 11 (CPU),optimal,225494.9587,225494.9632,1.98e-08,225494.9626,,0.0537851,4800,,1e-8 rel,TERMINATION_REASON_OPTIMAL
+adlittle,osqp,Windows 11 (CPU),optimal,225389.1143,225494.9632,4.69e-04,,,0.007526900037,2200,,1e-3 abs/rel,solved
+adlittle,osqp-tight,Windows 11 (CPU),iteration_limit,,225494.9632,,,,5.1485176,1000000,,1e-6 abs/rel,maximum iterations reached
+adlittle,scip,Windows 11 (CPU),optimal,225494.9632,225494.9632,1.77e-10,225494.9632,0,0.00445560005,120,1,,optimal
+blend,cbc,WSL2 (CPU),optimal,-30.81214985,-30.81214985,1.30e-10,,,0.013974387,,,,OPTIMAL
+blend,clarabel,Windows 11 (CPU),optimal,-30.81214984,-30.81214985,1.95e-10,,,0.001564900042,12,,1e-8,Solved
+blend,cuopt,WSL2 + RTX 3050 GPU,optimal,-30.8121498,-30.81214985,1.49e-09,,,0.218,78,,,Optimal
+blend,cuopt-barrier,WSL2 + RTX 3050 GPU,optimal,-30.812149,-30.81214985,2.75e-08,,,1.112,16,,,Optimal
+blend,cuopt-dualsimplex,WSL2 + RTX 3050 GPU,optimal,-30.8121498,-30.81214985,1.49e-09,,,0.11,90,,,Optimal
+blend,cuopt-pdlp,WSL2 + RTX 3050 GPU,optimal,-30.8127757,-30.81214985,2.03e-05,,,1.18,1400,,1e-4 rel,Optimal
+blend,glpk,Windows 11 (CPU),optimal,-30.81214985,-30.81214985,1.30e-10,,,0.0006244000397,40,,,ret=0 status=5
+blend,glpk-interior,Windows 11 (CPU),optimal,-30.81214973,-30.81214985,3.76e-09,,,0.0008229999803,,,1e-8 (approx),ret=0 ipt_status=5
+blend,highs,Windows 11 (CPU),optimal,-30.81214985,-30.81214985,1.30e-10,,,0.004271599988,80,,,Optimal
+blend,highs-hipdlp,Windows 11 (CPU),optimal,-30.81214569,-30.81214985,1.35e-07,,,0.004565800016,1200,,1e-7 rel,Optimal
+blend,highs-ipm,Windows 11 (CPU),optimal,-30.81214985,-30.81214985,1.30e-10,,,0.004308299976,10,,,Optimal
+blend,highs-pdlp,Windows 11 (CPU),optimal,-30.81214799,-30.81214985,6.02e-08,,,0.008272700012,1440,,"1e-7 rel (cuPDLP-C); run with no time_limit (HiGHS 1.15.1 cuPDLP-C timer bug), hard kill 120 s",Optimal
+blend,highs-simplex,Windows 11 (CPU),optimal,-30.81214985,-30.81214985,1.30e-10,,,0.003208600043,80,,,Optimal
+blend,ortools-clp,Windows 11 (CPU),optimal,-30.81214985,-30.81214985,1.30e-10,,,0.01373829995,83,,,OPTIMAL
+blend,ortools-glop,Windows 11 (CPU),optimal,-30.81214985,-30.81214985,1.30e-10,,,0.001836799958,36,,,OPTIMAL
+blend,ortools-pdlp,Windows 11 (CPU),optimal,-30.81214853,-30.81214985,4.27e-08,-30.81216183,,0.01205439999,2560,,1e-6 rel,TERMINATION_REASON_OPTIMAL
+blend,ortools-pdlp-tight,Windows 11 (CPU),optimal,-30.81214951,-30.81214985,1.09e-08,-30.81214984,,0.03115620004,3200,,1e-8 rel,TERMINATION_REASON_OPTIMAL
+blend,osqp,Windows 11 (CPU),optimal,-30.79922252,-30.81214985,4.20e-04,,,0.009095899994,3075,,1e-3 abs/rel,solved
+blend,osqp-tight,Windows 11 (CPU),iteration_limit,,-30.81214985,,,,6.2053566,1000000,,1e-6 abs/rel,maximum iterations reached
+blend,scip,Windows 11 (CPU),optimal,-30.81214985,-30.81214985,1.30e-10,-30.81214985,0,0.005931899999,81,1,,optimal
+sc50a,cbc,WSL2 (CPU),optimal,-64.57507706,-64.57507706,1.55e-11,,,0.005903036999,,,,OPTIMAL
+sc50a,clarabel,Windows 11 (CPU),optimal,-64.57507697,-64.57507706,1.38e-09,,,0.0008381000371,10,,1e-8,Solved
+sc50a,cuopt,WSL2 + RTX 3050 GPU,optimal,-64.5750771,-64.57507706,6.35e-10,,,0.119,34,,,Optimal
+sc50a,cuopt-barrier,WSL2 + RTX 3050 GPU,optimal,-64.5750769,-64.57507706,2.46e-09,,,1.062,16,,,Optimal
+sc50a,cuopt-dualsimplex,WSL2 + RTX 3050 GPU,optimal,-64.5750771,-64.57507706,6.35e-10,,,0.17,50,,,Optimal
+sc50a,cuopt-pdlp,WSL2 + RTX 3050 GPU,optimal,-64.5717628,-64.57507706,5.13e-05,,,1.389,640,,1e-4 rel,Optimal
+sc50a,glpk,Windows 11 (CPU),optimal,-64.57507706,-64.57507706,1.55e-11,,,0.0002902999986,26,,,ret=0 status=5
+sc50a,glpk-interior,Windows 11 (CPU),optimal,-64.57507692,-64.57507706,2.15e-09,,,0.0003079000162,,,1e-8 (approx),ret=0 ipt_status=5
+sc50a,highs,Windows 11 (CPU),optimal,-64.57507706,-64.57507706,1.55e-11,,,0.002236499975,18,,,Optimal
+sc50a,highs-hipdlp,Windows 11 (CPU),optimal,-64.57507628,-64.57507706,1.21e-08,,,0.001948799996,440,,1e-7 rel,Optimal
+sc50a,highs-ipm,Windows 11 (CPU),optimal,-64.57507706,-64.57507706,1.55e-11,,,0.003213400021,8,,,Optimal
+sc50a,highs-pdlp,Windows 11 (CPU),optimal,-64.5750751,-64.57507706,3.03e-08,,,0.003418000008,640,,"1e-7 rel (cuPDLP-C); run with no time_limit (HiGHS 1.15.1 cuPDLP-C timer bug), hard kill 120 s",Optimal
+sc50a,highs-simplex,Windows 11 (CPU),optimal,-64.57507706,-64.57507706,1.55e-11,,,0.001878400042,18,,,Optimal
+sc50a,ortools-clp,Windows 11 (CPU),optimal,-64.57507706,-64.57507706,1.55e-11,,,0.0006093000411,15,,,OPTIMAL
+sc50a,ortools-glop,Windows 11 (CPU),optimal,-64.57507706,-64.57507706,1.55e-11,,,0.001589299995,23,,,OPTIMAL
+sc50a,ortools-pdlp,Windows 11 (CPU),optimal,-64.5749398,-64.57507706,2.13e-06,-64.57502669,,0.00417640002,1088,,1e-6 rel,TERMINATION_REASON_OPTIMAL
+sc50a,ortools-pdlp-tight,Windows 11 (CPU),optimal,-64.57507791,-64.57507706,1.32e-08,-64.57507791,,0.01238619996,1536,,1e-8 rel,TERMINATION_REASON_OPTIMAL
+sc50a,osqp,Windows 11 (CPU),optimal,-64.59908052,-64.57507706,3.72e-04,,,0.0008907999727,575,,1e-3 abs/rel,solved
+sc50a,osqp-tight,Windows 11 (CPU),optimal,-64.57504837,-64.57507706,4.44e-07,,,0.007574999996,1650,,1e-6 abs/rel,solved
+sc50a,scip,Windows 11 (CPU),optimal,-64.57507706,-64.57507706,1.55e-11,-64.57507706,0,0.002858899999,18,1,,optimal
+share2b,cbc,WSL2 (CPU),optimal,-415.7322407,-415.7322407,9.62e-11,,,0.008699154001,,,,OPTIMAL
+share2b,clarabel,Windows 11 (CPU),optimal,-415.7322407,-415.7322407,9.62e-11,,,0.001511599985,12,,1e-8,Solved
+share2b,cuopt,WSL2 + RTX 3050 GPU,optimal,-415.732241,-415.7322407,6.25e-10,,,0.449,125,,,Optimal
+share2b,cuopt-barrier,WSL2 + RTX 3050 GPU,optimal,-415.732215,-415.7322407,6.19e-08,,,3.054,19,,,Optimal
+share2b,cuopt-dualsimplex,WSL2 + RTX 3050 GPU,optimal,-415.732241,-415.7322407,6.25e-10,,,0.19,129,,,Optimal
+share2b,cuopt-pdlp,WSL2 + RTX 3050 GPU,optimal,-415.680268,-415.7322407,1.25e-04,,,8.557,39200,,1e-4 rel,Optimal
+share2b,glpk,Windows 11 (CPU),optimal,-415.7322407,-415.7322407,9.62e-11,,,0.001409900025,73,,,ret=0 status=5
+share2b,glpk-interior,Windows 11 (CPU),optimal,-415.73224,-415.7322407,1.78e-09,,,0.0008757999749,,,1e-8 (approx),ret=0 ipt_status=5
+share2b,highs,Windows 11 (CPU),optimal,-415.7322407,-415.7322407,9.62e-11,,,0.004144900013,99,,,Optimal
+share2b,highs-hipdlp,Windows 11 (CPU),optimal,-415.7322963,-415.7322407,1.34e-07,,,0.1318821,75000,,1e-7 rel,Optimal
+share2b,highs-ipm,Windows 11 (CPU),optimal,-415.7322407,-415.7322407,9.62e-11,,,0.01070549997,16,,,Optimal
+share2b,highs-pdlp,Windows 11 (CPU),optimal,-415.7322512,-415.7322407,2.52e-08,,,0.01960940001,2920,,"1e-7 rel (cuPDLP-C); run with no time_limit (HiGHS 1.15.1 cuPDLP-C timer bug), hard kill 120 s",Optimal
+share2b,highs-simplex,Windows 11 (CPU),optimal,-415.7322407,-415.7322407,9.62e-11,,,0.004100500024,99,,,Optimal
+share2b,ortools-clp,Windows 11 (CPU),optimal,-415.7322407,-415.7322407,9.62e-11,,,0.001489599992,115,,,OPTIMAL
+share2b,ortools-glop,Windows 11 (CPU),optimal,-415.7322407,-415.7322407,9.62e-11,,,0.002182400029,67,,,OPTIMAL
+share2b,ortools-pdlp,Windows 11 (CPU),optimal,-415.7320998,-415.7322407,3.39e-07,-415.7320771,,0.1803658,31040,,1e-6 rel,TERMINATION_REASON_OPTIMAL
+share2b,ortools-pdlp-tight,Windows 11 (CPU),optimal,-415.7322347,-415.7322407,1.45e-08,-415.7322404,,0.4770548,40320,,1e-8 rel,TERMINATION_REASON_OPTIMAL
+share2b,osqp,Windows 11 (CPU),optimal_inaccurate,-414.657508,-415.7322407,2.59e-03,,,0.01493119996,4000,,1e-3 abs/rel,solved inaccurate
+share2b,osqp-tight,Windows 11 (CPU),iteration_limit,,-415.7322407,,,,7.9992668,1000000,,1e-6 abs/rel,maximum iterations reached
+share2b,scip,Windows 11 (CPU),optimal,-415.7322407,-415.7322407,9.62e-11,-415.7322407,0,0.01696360001,123,1,,optimal
+25fv47,cbc,WSL2 (CPU),optimal,5501.845888,5501.845888,5.45e-11,,,0.584374827,,,,OPTIMAL
+25fv47,clarabel,Windows 11 (CPU),optimal,5501.845889,5501.845888,1.27e-10,,,0.0800819,26,,1e-8,Solved
+25fv47,cuopt,WSL2 + RTX 3050 GPU,optimal,5501.84589,5501.845888,3.09e-10,,,1.256,2579,,,Optimal
+25fv47,cuopt-barrier,WSL2 + RTX 3050 GPU,optimal,5501.84759,5501.845888,3.09e-07,,,2.545,36,,,Optimal
+25fv47,cuopt-dualsimplex,WSL2 + RTX 3050 GPU,optimal,5501.84589,5501.845888,3.09e-10,,,0.92,2579,,,Optimal
+25fv47,cuopt-pdlp,WSL2 + RTX 3050 GPU,optimal,5502.09333,5501.845888,4.50e-05,,,2.456,4500,,1e-4 rel,Optimal
+25fv47,glpk,Windows 11 (CPU),optimal,5501.845888,5501.845888,5.45e-11,,,0.1392335,1615,,,ret=0 status=5
+25fv47,glpk-interior,Windows 11 (CPU),optimal,5501.845895,5501.845888,1.22e-09,,,0.066727,,,1e-8 (approx),ret=0 ipt_status=5
+25fv47,highs,Windows 11 (CPU),optimal,5501.845888,5501.845888,5.45e-11,,,0.1468666,2583,,,Optimal
+25fv47,highs-hipdlp,Windows 11 (CPU),optimal,5501.84697,5501.845888,1.97e-07,,,1.9086598,75080,,1e-7 rel,Optimal
+25fv47,highs-ipm,Windows 11 (CPU),optimal,5501.845888,5501.845888,5.45e-11,,,0.1038548,37,,,Optimal
+25fv47,highs-pdlp,Windows 11 (CPU),optimal,5501.84468,5501.845888,2.20e-07,,,3.8587369,63240,,"1e-7 rel (cuPDLP-C); run with no time_limit (HiGHS 1.15.1 cuPDLP-C timer bug), hard kill 120 s",Optimal
+25fv47,highs-simplex,Windows 11 (CPU),optimal,5501.845888,5501.845888,5.45e-11,,,0.1425142,2583,,,Optimal
+25fv47,ortools-clp,Windows 11 (CPU),optimal,5501.845888,5501.845888,5.45e-11,,,0.1537476,2706,,,OPTIMAL
+25fv47,ortools-glop,Windows 11 (CPU),optimal,5501.845888,5501.845888,5.45e-11,,,0.1084381,1389,,,OPTIMAL
+25fv47,ortools-pdlp,Windows 11 (CPU),optimal,5501.85546,5501.845888,1.74e-06,5501.846441,,1.9303372,43968,,1e-6 rel,TERMINATION_REASON_OPTIMAL
+25fv47,ortools-pdlp-tight,Windows 11 (CPU),optimal,5501.845944,5501.845888,1.01e-08,5501.845847,,6.9994631,73728,,1e-8 rel,TERMINATION_REASON_OPTIMAL
+25fv47,osqp,Windows 11 (CPU),iteration_limit,,5501.845888,,,,0.46593,4000,,1e-3 abs/rel,maximum iterations reached
+25fv47,osqp-tight,Windows 11 (CPU),time_limit,,5501.845888,,,,60.0021394,262046,,1e-6 abs/rel,run time limit reached
+25fv47,scip,Windows 11 (CPU),optimal,5501.845888,5501.845888,5.45e-11,5501.845888,0,0.4249826,7871,1,,optimal
+degen2,cbc,WSL2 (CPU),optimal,-1435.178,-1435.178,0.00e+00,,,0.031292806,,,,OPTIMAL
+degen2,clarabel,Windows 11 (CPU),optimal,-1435.178,-1435.178,0.00e+00,,,0.01488709997,12,,1e-8,Solved
+degen2,cuopt,WSL2 + RTX 3050 GPU,optimal,-1435.178,-1435.178,0.00e+00,,,0.583,432,,,Optimal
+degen2,cuopt-barrier,WSL2 + RTX 3050 GPU,optimal,-1435.17792,-1435.178,5.57e-08,,,1.81,23,,,Optimal
+degen2,cuopt-dualsimplex,WSL2 + RTX 3050 GPU,optimal,-1435.178,-1435.178,0.00e+00,,,0.24,599,,,Optimal
+degen2,cuopt-pdlp,WSL2 + RTX 3050 GPU,optimal,-1435.15333,-1435.178,1.72e-05,,,1.766,2400,,1e-4 rel,Optimal
+degen2,glpk,Windows 11 (CPU),optimal,-1435.178,-1435.178,0.00e+00,,,0.01685719995,512,,,ret=0 status=5
+degen2,glpk-interior,Windows 11 (CPU),optimal,-1435.177996,-1435.178,2.79e-09,,,0.01375069999,,,1e-8 (approx),ret=0 ipt_status=5
+degen2,highs,Windows 11 (CPU),optimal,-1435.178,-1435.178,0.00e+00,,,0.01542389998,445,,,Optimal
+degen2,highs-hipdlp,Windows 11 (CPU),optimal,-1435.178014,-1435.178,9.75e-09,,,0.03930619999,3400,,1e-7 rel,Optimal
+degen2,highs-ipm,Windows 11 (CPU),optimal,-1435.178,-1435.178,0.00e+00,,,0.02435129997,51,,,Optimal
+degen2,highs-pdlp,Windows 11 (CPU),optimal,-1435.178001,-1435.178,6.97e-10,,,0.1048637,3120,,"1e-7 rel (cuPDLP-C); run with no time_limit (HiGHS 1.15.1 cuPDLP-C timer bug), hard kill 120 s",Optimal
+degen2,highs-simplex,Windows 11 (CPU),optimal,-1435.178,-1435.178,0.00e+00,,,0.01484849997,445,,,Optimal
+degen2,ortools-clp,Windows 11 (CPU),optimal,-1435.178,-1435.178,0.00e+00,,,0.01058399997,447,,,OPTIMAL
+degen2,ortools-glop,Windows 11 (CPU),optimal,-1435.178,-1435.178,0.00e+00,,,0.01459560002,419,,,OPTIMAL
+degen2,ortools-pdlp,Windows 11 (CPU),optimal,-1435.177709,-1435.178,2.03e-07,-1435.178002,,0.0581651,3136,,1e-6 rel,TERMINATION_REASON_OPTIMAL
+degen2,ortools-pdlp-tight,Windows 11 (CPU),optimal,-1435.177989,-1435.178,7.66e-09,-1435.178,,0.2886634,3776,,1e-8 rel,TERMINATION_REASON_OPTIMAL
+degen2,osqp,Windows 11 (CPU),optimal,-1435.236435,-1435.178,4.07e-05,,,0.005185200018,125,,1e-3 abs/rel,solved
+degen2,osqp-tight,Windows 11 (CPU),optimal,-1435.17782,-1435.178,1.25e-07,,,0.4359053,2850,,1e-6 abs/rel,solved
+degen2,scip,Windows 11 (CPU),optimal,-1435.178,-1435.178,0.00e+00,-1435.178,0,0.03997530002,1091,1,,optimal
+pilot4,cbc,WSL2 (CPU),optimal,-2581.13926,-2581.139259,4.26e-10,,,0.143463609,,,,OPTIMAL
+pilot4,clarabel,Windows 11 (CPU),optimal,-2581.139022,-2581.139259,9.18e-08,,,0.0901111,41,,1e-8,Solved
+pilot4,cuopt,WSL2 + RTX 3050 GPU,optimal,-2581.13845,-2581.139259,3.13e-07,,,2.767,630,,,Optimal
+pilot4,cuopt-barrier,WSL2 + RTX 3050 GPU,optimal,-2581.13925,-2581.139259,3.45e-09,,,0.961,47,,,Optimal
+pilot4,cuopt-dualsimplex,WSL2 + RTX 3050 GPU,optimal,-2581.13926,-2581.139259,4.26e-10,,,0.22,677,,,Optimal
+pilot4,cuopt-pdlp,WSL2 + RTX 3050 GPU,optimal,-2582.25515,-2581.139259,4.32e-04,,,32.149,481800,,1e-4 rel,Optimal
+pilot4,glpk,Windows 11 (CPU),optimal,-2581.139259,-2581.139259,3.87e-11,,,0.1472873,520,,,ret=0 status=5
+pilot4,glpk-interior,Windows 11 (CPU),infeasible,,-2581.139259,,,,0.1063971,,,1e-8 (approx),ret=17 ipt_status=3
+pilot4,highs,Windows 11 (CPU),optimal,-2581.139259,-2581.139259,3.87e-11,,,0.02794269996,684,,,Optimal
+pilot4,highs-hipdlp,Windows 11 (CPU),time_limit,,-2581.139259,,,,60.0069871,701600,,1e-7 rel,Time limit reached
+pilot4,highs-ipm,Windows 11 (CPU),optimal,-2581.139259,-2581.139259,3.87e-11,,,0.04431140004,31,,,Optimal
+pilot4,highs-pdlp,Windows 11 (CPU),time_limit,,-2581.139259,,,,120.049897,,,"1e-7 rel (cuPDLP-C); run with no time_limit (HiGHS 1.15.1 cuPDLP-C timer bug), hard kill 120 s",killed at hard timeout
+pilot4,highs-simplex,Windows 11 (CPU),optimal,-2581.139259,-2581.139259,3.87e-11,,,0.03682350001,684,,,Optimal
+pilot4,ortools-clp,Windows 11 (CPU),optimal,-2581.13926,-2581.139259,4.26e-10,,,0.03195040004,776,,,OPTIMAL
+pilot4,ortools-glop,Windows 11 (CPU),optimal,-2581.139259,-2581.139259,3.87e-11,,,0.03309879999,558,,,OPTIMAL
+pilot4,ortools-pdlp,Windows 11 (CPU),time_limit,-2539.148692,-2581.139259,1.63e-02,-2574.536118,,60.0038491,430656,,1e-6 rel,TERMINATION_REASON_TIME_LIMIT
+pilot4,ortools-pdlp-tight,Windows 11 (CPU),time_limit,-2551.81832,-2581.139259,1.14e-02,-2574.007795,,60.0061428,441003,,1e-8 rel,TERMINATION_REASON_TIME_LIMIT
+pilot4,osqp,Windows 11 (CPU),optimal_inaccurate,-4457.801234,-2581.139259,7.27e-01,,,0.1605843,4000,,1e-3 abs/rel,solved inaccurate
+pilot4,osqp-tight,Windows 11 (CPU),time_limit,,-2581.139259,,,,59.9987841,665778,,1e-6 abs/rel,run time limit reached
+pilot4,scip,Windows 11 (CPU),optimal,-2581.13926,-2581.139259,4.26e-10,-2581.13926,0,0.1121556,1510,1,,optimal
+greenbea,cbc,WSL2 (CPU),optimal,-72555248.13,-72555248.13,0.00e+00,,,0.719919117,,,,OPTIMAL
+greenbea,clarabel,Windows 11 (CPU),optimal,-72462468.49,-72555248.13,1.28e-03,,,3.8174537,42,,1e-8,Solved
+greenbea,cuopt,WSL2 + RTX 3050 GPU,optimal,-72555248.1,-72555248.13,4.13e-10,,,0.551,2433,,,Optimal
+greenbea,cuopt-barrier,WSL2 + RTX 3050 GPU,optimal,-72555223.8,-72555248.13,3.35e-07,,,2.592,41,,,Optimal
+greenbea,cuopt-dualsimplex,WSL2 + RTX 3050 GPU,optimal,-72555248.1,-72555248.13,4.13e-10,,,1.1,2433,,,Optimal
+greenbea,cuopt-pdlp,WSL2 + RTX 3050 GPU,time_limit,-70400716.1,-72555248.13,2.97e-02,,,60.017,934200,,1e-4 rel,Time Limit
+greenbea,glpk,Windows 11 (CPU),optimal,-72555248.13,-72555248.13,0.00e+00,,,0.6241293,3177,,,ret=0 status=5
+greenbea,glpk-interior,Windows 11 (CPU),infeasible,,-72555248.13,,,,0.3518366,,,1e-8 (approx),ret=17 ipt_status=3
+greenbea,highs,Windows 11 (CPU),optimal,-72555248.13,-72555248.13,0.00e+00,,,0.2605603,2524,,,Optimal
+greenbea,highs-hipdlp,Windows 11 (CPU),time_limit,,-72555248.13,,,,60.0073711,393760,,1e-7 rel,Time limit reached
+greenbea,highs-ipm,Windows 11 (CPU),optimal,-72555248.13,-72555248.13,0.00e+00,,,0.3553653,93,,,Optimal
+greenbea,highs-pdlp,Windows 11 (CPU),time_limit,,-72555248.13,,,,120.0417656,,,"1e-7 rel (cuPDLP-C); run with no time_limit (HiGHS 1.15.1 cuPDLP-C timer bug), hard kill 120 s",killed at hard timeout
+greenbea,highs-simplex,Windows 11 (CPU),optimal,-72555248.13,-72555248.13,0.00e+00,,,0.263864,2524,,,Optimal
+greenbea,ortools-clp,Windows 11 (CPU),optimal,-72555248.13,-72555248.13,0.00e+00,,,0.8342961,3274,,,OPTIMAL
+greenbea,ortools-glop,Windows 11 (CPU),optimal,-72555248.13,-72555248.13,0.00e+00,,,0.7106751,5020,,,OPTIMAL
+greenbea,ortools-pdlp,Windows 11 (CPU),time_limit,-73867865.59,-72555248.13,1.81e-02,-82841936.26,,60.0520448,170433,,1e-6 rel,TERMINATION_REASON_TIME_LIMIT
+greenbea,ortools-pdlp-tight,Windows 11 (CPU),time_limit,-73126254.84,-72555248.13,7.87e-03,-70329462.94,,60.0078139,189727,,1e-8 rel,TERMINATION_REASON_TIME_LIMIT
+greenbea,osqp,Windows 11 (CPU),iteration_limit,,-72555248.13,,,,2.0946028,4000,,1e-3 abs/rel,maximum iterations reached
+greenbea,osqp-tight,Windows 11 (CPU),time_limit,,-72555248.13,,,,59.9829124,127361,,1e-6 abs/rel,run time limit reached
+greenbea,scip,Windows 11 (CPU),optimal,-72555248.13,-72555248.13,0.00e+00,-72555248.13,0,3.3238505,22031,1,,optimal
+stocfor1,cbc,WSL2 (CPU),optimal,-41131.97622,-41131.97622,2.43e-11,,,0.006596628999,,,,OPTIMAL
+stocfor1,clarabel,Windows 11 (CPU),optimal,-41131.97042,-41131.97622,1.41e-07,,,0.01805160003,14,,1e-8,Solved
+stocfor1,cuopt,WSL2 + RTX 3050 GPU,optimal,-41131.9762,-41131.97622,4.62e-10,,,0.135,70,,,Optimal
+stocfor1,cuopt-barrier,WSL2 + RTX 3050 GPU,optimal,-41131.9737,-41131.97622,6.12e-08,,,0.413,19,,,Optimal
+stocfor1,cuopt-dualsimplex,WSL2 + RTX 3050 GPU,optimal,-41131.9762,-41131.97622,4.62e-10,,,0.1,120,,,Optimal
+stocfor1,cuopt-pdlp,WSL2 + RTX 3050 GPU,optimal,-41131.7981,-41131.97622,4.33e-06,,,0.709,4900,,1e-4 rel,Optimal
+stocfor1,glpk,Windows 11 (CPU),optimal,-41131.97622,-41131.97622,2.43e-11,,,0.01332019997,52,,,ret=0 status=5
+stocfor1,glpk-interior,Windows 11 (CPU),optimal,-41131.9762,-41131.97622,4.62e-10,,,0.003208699985,,,1e-8 (approx),ret=0 ipt_status=5
+stocfor1,highs,Windows 11 (CPU),optimal,-41131.97622,-41131.97622,2.43e-11,,,0.006305900053,53,,,Optimal
+stocfor1,highs-hipdlp,Windows 11 (CPU),optimal,-41131.9751,-41131.97622,2.72e-08,,,0.1037125,3880,,1e-7 rel,Optimal
+stocfor1,highs-ipm,Windows 11 (CPU),optimal,-41131.97622,-41131.97622,2.43e-11,,,0.04791360005,11,,,Optimal
+stocfor1,highs-pdlp,Windows 11 (CPU),optimal,-41131.97781,-41131.97622,3.87e-08,,,0.01325180003,5880,,"1e-7 rel (cuPDLP-C); run with no time_limit (HiGHS 1.15.1 cuPDLP-C timer bug), hard kill 120 s",Optimal
+stocfor1,highs-simplex,Windows 11 (CPU),optimal,-41131.97622,-41131.97622,2.43e-11,,,0.003274000017,53,,,Optimal
+stocfor1,ortools-clp,Windows 11 (CPU),optimal,-41131.97622,-41131.97622,2.43e-11,,,0.0588078,60,,,OPTIMAL
+stocfor1,ortools-glop,Windows 11 (CPU),optimal,-41131.97622,-41131.97622,2.43e-11,,,0.0621938,25,,,OPTIMAL
+stocfor1,ortools-pdlp,Windows 11 (CPU),optimal,-41132.07243,-41131.97622,2.34e-06,-41132.02316,,0.05911720003,8896,,1e-6 rel,TERMINATION_REASON_OPTIMAL
+stocfor1,ortools-pdlp-tight,Windows 11 (CPU),optimal,-41131.97704,-41131.97622,2.00e-08,-41131.97632,,0.06285059999,10624,,1e-8 rel,TERMINATION_REASON_OPTIMAL
+stocfor1,osqp,Windows 11 (CPU),optimal_inaccurate,-40519.69937,-41131.97622,1.49e-02,,,0.01415179996,4000,,1e-3 abs/rel,solved inaccurate
+stocfor1,osqp-tight,Windows 11 (CPU),iteration_limit,,-41131.97622,,,,4.5516745,1000000,,1e-6 abs/rel,maximum iterations reached
+stocfor1,scip,Windows 11 (CPU),optimal,-41131.97622,-41131.97622,2.43e-11,-41131.97622,0,0.5541046,64,1,,optimal
+qap15,cuopt,WSL2 + RTX 3050 GPU,optimal,1041.0151,,,,,0.548,2800,,,Optimal
+qap15,cuopt-barrier,WSL2 + RTX 3050 GPU,optimal,1041.00455,,,,,10.484,23,,,Optimal
+qap15,cuopt-pdlp,WSL2 + RTX 3050 GPU,optimal,1041.0151,,,,,0.573,2800,,1e-4 rel,Optimal
+qap15,highs,Windows 11 (CPU),time_limit,758.4586679,,,,,60.0067661,28921,,,Time limit reached
+qap15,highs-ipm,Windows 11 (CPU),optimal,1040.994041,,,,,12.9036023,2585,,,Optimal
+qap15,ortools-pdlp,Windows 11 (CPU),optimal,1040.994156,,,1040.993884,,5.6798203,8192,,1e-6 rel,TERMINATION_REASON_OPTIMAL
+ex10,cuopt,WSL2 + RTX 3050 GPU,optimal,100.005778,,,,,2.946,460,,,Optimal
+ex10,cuopt-barrier,WSL2 + RTX 3050 GPU,other,,,,,,24.36468694,,,,
+ex10,cuopt-pdlp,WSL2 + RTX 3050 GPU,optimal,100.005778,,,,,2.049,460,,1e-4 rel,Optimal
+ex10,highs,Windows 11 (CPU),time_limit,,,,,,60.0283117,12563,,,Time limit reached
+ex10,highs-ipm,Windows 11 (CPU),time_limit,,,,,,60.0160846,8015,,,Time limit reached
+ex10,ortools-pdlp,Windows 11 (CPU),optimal,100.0000033,,,99.99998626,,8.4981107,448,,1e-6 rel,TERMINATION_REASON_OPTIMAL

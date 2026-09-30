@@ -1,0 +1,8 @@
+case,class,rows,cols,integer_cols,nnz,q_nnz,highs_status,objective,mip_rel_gap_target,mip_gap,mip_bound,highs_time_s,highs_version,mps_file
+refinery_planning,LP,93,188,0,726,0,Optimal,-290643.28779224044,,,,0.01,1.15.1,data/cases/refinery_planning.mps
+refinery_multiperiod,MILP,1391,2579,227,9721,0,Optimal,-290457.57683886966,1e-06,9.05e-07,-290457.83976618294,75.97,1.15.1,data/cases/refinery_multiperiod.mps
+unit_commitment,MILP,39395,44544,16128,167806,0,Optimal,1235464.1477291258,0.01,0.00733,1226410.7795789293,255.91,1.15.1,data/cases/unit_commitment.mps
+economic_dispatch,QP,9266,5871,0,25669,122,Optimal,943042.2072890102,,,,1.90,1.15.1,data/cases/economic_dispatch.mps
+facility_location,MILP,101100,100100,100,400100,0,Optimal,13656379.577553982,1e-06,0,13656379.577553982,592.26,1.15.1,data/cases/facility_location.mps
+product_distribution,LP,114,1512,0,3024,0,Optimal,45369609.94885948,,,,0.01,1.15.1,data/cases/product_distribution.mps
+crude_scheduling,MILP,2470,1848,112,17748,0,Optimal,101.17456625902165,1e-06,0,101.17456625902165,6.78,1.15.1,data/cases/crude_scheduling.mps

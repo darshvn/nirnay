@@ -1,0 +1,91 @@
+instance,solver,platform,status,objective,ref_objective,rel_err,bound,gap,time,iterations,nodes,tolerance_note,raw_status
+p0033,cbc,WSL2 (CPU),optimal,3089,3089,0.00e+00,3089,0,0.031124034,142,0,,OPTIMAL
+p0033,cuopt,WSL2 + RTX 3050 GPU,optimal,3089,3089,0.00e+00,3089,0,0.35,79,10,,Optimal solution found.
+p0033,glpk,Windows 11 (CPU),optimal,3089,3089,0.00e+00,,,0.007149999961,394,,,ret=0 mip_status=5
+p0033,glpk-cuts,Windows 11 (CPU),optimal,3089,3089,0.00e+00,,,0.0651527,118,,,ret=0 mip_status=5
+p0033,highs,Windows 11 (CPU),optimal,3089,3089,0.00e+00,3089,0,0.05786660005,72,1,,Optimal
+p0033,ortools-cbc,Windows 11 (CPU),optimal,3089,3089,0.00e+00,3089,0,0.1106274,324,0,,OPTIMAL
+p0033,ortools-cpsat,Windows 11 (CPU),optimal,3089,3089,0.00e+00,3089,0,0.1984266,0,0,,OPTIMAL
+p0033,ortools-scip,Windows 11 (CPU),optimal,3089,3089,0.00e+00,3089,0,0.1809171,138,1,,OPTIMAL
+p0033,scip,Windows 11 (CPU),optimal,3089,3089,0.00e+00,3089,0,0.09412739996,138,1,,optimal
+p0201,cbc,WSL2 (CPU),optimal,7615,7615,0.00e+00,7615,0,1.195004328,6980,84,,OPTIMAL
+p0201,cuopt,WSL2 + RTX 3050 GPU,optimal,7665,7615,6.57e-03,7665,0,1.59,20658,1402,,Optimal solution found.
+p0201,glpk,Windows 11 (CPU),optimal,7615,7615,0.00e+00,,,0.4945922,12361,,,ret=0 mip_status=5
+p0201,glpk-cuts,Windows 11 (CPU),optimal,7615,7615,0.00e+00,,,2.4748573,18053,,,ret=0 mip_status=5
+p0201,highs,Windows 11 (CPU),optimal,7615,7615,0.00e+00,7615,0,1.1084166,9981,5,,Optimal
+p0201,ortools-cbc,Windows 11 (CPU),optimal,7615,7615,0.00e+00,7615,0,1.443347,7645,40,,OPTIMAL
+p0201,ortools-cpsat,Windows 11 (CPU),optimal,7615,7615,0.00e+00,7615,0,2.5291697,0,0,,OPTIMAL
+p0201,ortools-scip,Windows 11 (CPU),optimal,7615,7615,0.00e+00,7615,0,1.5128752,3380,35,,OPTIMAL
+p0201,scip,Windows 11 (CPU),optimal,7615,7615,0.00e+00,7615,0,1.6522279,2041,17,,optimal
+p0282,cbc,WSL2 (CPU),optimal,258411,258411,0.00e+00,258411,0,0.960307217,4275,8,,OPTIMAL
+p0282,cuopt,WSL2 + RTX 3050 GPU,optimal,258411,258411,0.00e+00,258411,0,0.9,2186,439,,Optimal solution found.
+p0282,glpk,Windows 11 (CPU),optimal,258411,258411,0.00e+00,,,0.1385026,1193,,,ret=0 mip_status=5
+p0282,glpk-cuts,Windows 11 (CPU),optimal,258411,258411,0.00e+00,,,0.7243315,4570,,,ret=0 mip_status=5
+p0282,highs,Windows 11 (CPU),optimal,258411,258411,0.00e+00,258411,0,0.5495051,640,1,,Optimal
+p0282,ortools-cbc,Windows 11 (CPU),optimal,258411,258411,0.00e+00,258411,0,0.6908104,3663,8,,OPTIMAL
+p0282,ortools-cpsat,Windows 11 (CPU),optimal,258411,258411,0.00e+00,258411,0,0.2426689,0,0,,OPTIMAL
+p0282,ortools-scip,Windows 11 (CPU),optimal,258411,258411,0.00e+00,258397.5793,5.193539336e-05,0.2870617,1056,2,,OPTIMAL
+p0282,scip,Windows 11 (CPU),optimal,258411,258411,0.00e+00,258411,0,0.9098534,1104,1,,optimal
+lseu,cbc,WSL2 (CPU),optimal,1120,1120,0.00e+00,1120,0,0.312588205,5557,655,,OPTIMAL
+lseu,cuopt,WSL2 + RTX 3050 GPU,optimal,1120,1120,0.00e+00,1120,0,1.05,7382,2813,,Optimal solution found.
+lseu,glpk,Windows 11 (CPU),optimal,1120,1120,0.00e+00,,,0.8949606,24935,,,ret=0 mip_status=5
+lseu,glpk-cuts,Windows 11 (CPU),optimal,1120,1120,0.00e+00,,,4.4263928,5768,,,ret=0 mip_status=5
+lseu,highs,Windows 11 (CPU),optimal,1120,1120,0.00e+00,1120,0,0.3975316,1759,7,,Optimal
+lseu,ortools-cbc,Windows 11 (CPU),optimal,1120,1120,0.00e+00,1120,0,0.4801029,1678,32,,OPTIMAL
+lseu,ortools-cpsat,Windows 11 (CPU),optimal,1120,1120,0.00e+00,1120,0,0.4036624,0,0,,OPTIMAL
+lseu,ortools-scip,Windows 11 (CPU),optimal,1120,1120,0.00e+00,1120,0,0.654012,2755,210,,OPTIMAL
+lseu,scip,Windows 11 (CPU),optimal,1120,1120,0.00e+00,1120,0,1.1230985,2536,185,,optimal
+stein27,cbc,WSL2 (CPU),optimal,18,18,0.00e+00,18,0,0.595176772,19508,3744,,OPTIMAL
+stein27,cuopt,WSL2 + RTX 3050 GPU,optimal,18,18,0.00e+00,18,0,0.96,9476,2838,,Optimal solution found.
+stein27,glpk,Windows 11 (CPU),optimal,18,18,0.00e+00,,,0.2944267,13904,,,ret=0 mip_status=5
+stein27,glpk-cuts,Windows 11 (CPU),optimal,18,18,0.00e+00,,,0.8781464,19727,,,ret=0 mip_status=5
+stein27,highs,Windows 11 (CPU),optimal,18,18,0.00e+00,18,0,0.7855081,13174,1434,,Optimal
+stein27,ortools-cbc,Windows 11 (CPU),optimal,18,18,0.00e+00,18,0,1.0476316,9292,1031,,OPTIMAL
+stein27,ortools-cpsat,Windows 11 (CPU),optimal,18,18,0.00e+00,18,0,0.102406,0,0,,OPTIMAL
+stein27,ortools-scip,Windows 11 (CPU),optimal,18,18,0.00e+00,18,3.947459643e-16,1.4213247,17423,2075,,OPTIMAL
+stein27,scip,Windows 11 (CPU),optimal,18,18,0.00e+00,18,0,0.3430245,2049,191,,optimal
+egout,cbc,WSL2 (CPU),optimal,568.1007,568.1007,0.00e+00,568.1006939,1.077888795e-08,0.025364253,25,0,,OPTIMAL
+egout,cuopt,WSL2 + RTX 3050 GPU,optimal,568.1007,568.1007,0.00e+00,568.1007,0,0.47,49,0,,Optimal solution found.
+egout,glpk,Windows 11 (CPU),optimal,568.1007,568.1007,0.00e+00,,,0.08195369999,1697,,,ret=0 mip_status=5
+egout,glpk-cuts,Windows 11 (CPU),optimal,568.1007,568.1007,0.00e+00,,,0.1670368999,210,,,ret=0 mip_status=5
+egout,highs,Windows 11 (CPU),optimal,568.1007,568.1007,0.00e+00,568.1007,0,0.03196180001,39,1,,Optimal
+egout,ortools-cbc,Windows 11 (CPU),optimal,568.1007,568.1007,0.00e+00,568.1007,0,0.01887290005,28,0,,OPTIMAL
+egout,ortools-cpsat,Windows 11 (CPU),other,,568.1007,,0,,0.001774600009,0,0,,MODEL_INVALID
+egout,ortools-scip,Windows 11 (CPU),optimal,568.1007,568.1007,0.00e+00,568.1007,0,0.01679349999,74,1,,OPTIMAL
+egout,scip,Windows 11 (CPU),optimal,568.1007,568.1007,0.00e+00,568.1007,0,0.01728550001,74,1,,optimal
+mod008,cbc,WSL2 (CPU),optimal,307,307,0.00e+00,307,0,0.137168844,646,6,,OPTIMAL
+mod008,cuopt,WSL2 + RTX 3050 GPU,optimal,307,307,0.00e+00,307,0,1.14,2610,614,,Optimal solution found.
+mod008,glpk,Windows 11 (CPU),optimal,307,307,0.00e+00,,,0.3563289,7651,,,ret=0 mip_status=5
+mod008,glpk-cuts,Windows 11 (CPU),optimal,307,307,0.00e+00,,,5.9612451,1259,,,ret=0 mip_status=5
+mod008,highs,Windows 11 (CPU),optimal,307,307,0.00e+00,307,0,1.2786557,4977,7,,Optimal
+mod008,ortools-cbc,Windows 11 (CPU),optimal,307,307,0.00e+00,307,0,0.142727,636,6,,OPTIMAL
+mod008,ortools-cpsat,Windows 11 (CPU),optimal,307,307,0.00e+00,307,0,0.2093226,0,0,,OPTIMAL
+mod008,ortools-scip,Windows 11 (CPU),optimal,307,307,0.00e+00,307,0,0.8334532999,506,1,,OPTIMAL
+mod008,scip,Windows 11 (CPU),optimal,307,307,0.00e+00,307,0,0.1544524,119,1,,optimal
+bell5,cbc,WSL2 (CPU),optimal,8966406.492,8966406.49,2.23e-10,8966406.492,0,0.871547594,31923,23887,,OPTIMAL
+bell5,cuopt,WSL2 + RTX 3050 GPU,optimal,8966414,8966406.49,8.38e-07,8965518,9.992846639e-05,0.81,2618,1812,,Optimal solution found within relative MIP gap tolerance (1.0e-04)
+bell5,glpk,Windows 11 (CPU),time_limit,8982048.479,8966406.49,1.74e-03,,,60.0433313,189375,,,ret=9 mip_status=2
+bell5,glpk-cuts,Windows 11 (CPU),optimal,8966406.492,8966406.49,2.23e-10,,,2.6106406,6741,,,ret=0 mip_status=5
+bell5,highs,Windows 11 (CPU),optimal,8966406.492,8966406.49,2.23e-10,8965524.178,9.84021572e-05,0.5056072,2125,180,,Optimal
+bell5,ortools-cbc,Windows 11 (CPU),time_limit,8966406.492,8966406.49,2.23e-10,8960786.235,0.0006268125525,60.0471894,2272523,1713128,,FEASIBLE
+bell5,ortools-cpsat,Windows 11 (CPU),optimal,8966487.879,8966406.49,9.08e-06,8966487.879,0,0.2555069,0,0,,OPTIMAL
+bell5,ortools-scip,Windows 11 (CPU),optimal,8966406.492,8966406.49,2.23e-10,8965555.229,9.493914327e-05,0.2693861,1154,280,,OPTIMAL
+bell5,scip,Windows 11 (CPU),optimal,8966406.492,8966406.49,2.23e-10,8966406.492,0,0.3218156,1198,357,,optimal
+flugpl,cbc,WSL2 (CPU),optimal,1201500,1201500,0.00e+00,1201500,0,0.085369353,2333,2197,,OPTIMAL
+flugpl,cuopt,WSL2 + RTX 3050 GPU,optimal,1201500,1201500,0.00e+00,1201500,0,0.25,163,234,,Optimal solution found.
+flugpl,glpk,Windows 11 (CPU),optimal,1201500,1201500,0.00e+00,,,0.005196200043,242,,,ret=0 mip_status=5
+flugpl,glpk-cuts,Windows 11 (CPU),optimal,1201500,1201500,0.00e+00,,,0.008579399961,404,,,ret=0 mip_status=5
+flugpl,highs,Windows 11 (CPU),optimal,1201500,1201500,0.00e+00,1201500,0,0.1163302,858,89,,Optimal
+flugpl,ortools-cbc,Windows 11 (CPU),optimal,1201500,1201500,0.00e+00,1201500,0,0.03879230004,666,12,,OPTIMAL
+flugpl,ortools-cpsat,Windows 11 (CPU),optimal,1201500,1201500,0.00e+00,1201500,0,0.1557603001,0,0,,OPTIMAL
+flugpl,ortools-scip,Windows 11 (CPU),optimal,1201500,1201500,0.00e+00,1201500,0,0.1105818,352,206,,OPTIMAL
+flugpl,scip,Windows 11 (CPU),optimal,1201500,1201500,0.00e+00,1201500,0,0.04992579995,10,1,,optimal
+misc03,cbc,WSL2 (CPU),optimal,3360,3360,0.00e+00,3360,0,1.089143982,13461,306,,OPTIMAL
+misc03,cuopt,WSL2 + RTX 3050 GPU,optimal,3360,3360,0.00e+00,3360,0,1.19,2886,286,,Optimal solution found.
+misc03,glpk,Windows 11 (CPU),optimal,3360,3360,0.00e+00,,,0.1998262,6404,,,ret=0 mip_status=5
+misc03,glpk-cuts,Windows 11 (CPU),optimal,3360,3360,0.00e+00,,,4.0048506,44076,,,ret=0 mip_status=5
+misc03,highs,Windows 11 (CPU),optimal,3360,3360,0.00e+00,3360,0,0.9586903,9070,27,,Optimal
+misc03,ortools-cbc,Windows 11 (CPU),optimal,3360,3360,0.00e+00,3360,0,2.2359645,20604,332,,OPTIMAL
+misc03,ortools-cpsat,Windows 11 (CPU),optimal,3360,3360,0.00e+00,3360,0,0.08921159996,0,0,,OPTIMAL
+misc03,ortools-scip,Windows 11 (CPU),optimal,3360,3360,0.00e+00,3360,0,1.2730173,4196,33,,OPTIMAL
+misc03,scip,Windows 11 (CPU),optimal,3360,3360,0.00e+00,3360,0,2.2002418,3521,1,,optimal
