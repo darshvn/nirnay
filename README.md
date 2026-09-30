@@ -5,7 +5,7 @@
 ### An indigenous LP / MILP / QP optimisation solver, written from the mathematics up
 
 **Smart India Hackathon 2026 · Problem statement SIH26119 · Mangalore Refinery and Petrochemicals Ltd (MRPL)**<br>
-*Indigenous GPU-Accelerated Optimization Solver (Sovereign Alternative to Xpress / CPLEX)* · **Team ZeroCloud**
+*Indigenous GPU-Accelerated Optimization Solver (Sovereign Alternative to Xpress / CPLEX)* · **Team ZeroCloud · Team ID 175338**
 
 *nirnay (निर्णय) — "decision"*
 

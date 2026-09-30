@@ -139,7 +139,7 @@ SLIDES = {
              f"Organisation {D}  Mangalore Refinery and Petrochemicals Ltd (MRPL)",
              f"Theme {D}  Smart Automation",
              f"PS Category {D}  Software",
-             f"Team ID {D}",
+             f"Team ID {D}  175338",
              f"Team Name {D}  ZeroCloud"],
     },
     2: {
