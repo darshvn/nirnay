@@ -47,7 +47,7 @@ def ok(r, tol, strict=True):
     return float(e) < tol if strict else float(e) <= tol
 
 
-spx = newest(["netlib_simplex_v4", "netlib_simplex_v3", "netlib_simplex_v2"], 80)
+spx = newest(["netlib_simplex_v5", "netlib_simplex_v4", "netlib_simplex_v3", "netlib_simplex_v2"], 80)
 ipm = newest(["netlib_ipm_v2", "netlib_ipm_v1"], 80)
 mip = newest(["miplib3_bnb_v2", "miplib3_bnb_v1"], 60)
 qp = newest(["maros_qpipm_v2", "maros_qpipm_v1"], 130)

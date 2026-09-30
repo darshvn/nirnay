@@ -34,7 +34,7 @@ def solved(rs, tol, strict=True):
             and (f(r["rel_err"]) < tol if strict else f(r["rel_err"]) <= tol)]
 
 
-spx, ipm = rows("netlib_simplex_v4"), rows("netlib_ipm_v2")
+spx, ipm = rows("netlib_simplex_v5"), rows("netlib_ipm_v2")
 mip, qp = rows("miplib3_bnb_v2"), rows("maros_qpipm_v2")
 
 # 1. solved per suite ------------------------------------------------------------------------

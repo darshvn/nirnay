@@ -59,7 +59,7 @@ not, so it is one engine of three, not the default.
 
 ### Honest about speed
 
-On Netlib the dual simplex is slower than HiGHS (15 years of tuned C++) — about **3× in shifted
+On Netlib the dual simplex is slower than HiGHS (15 years of tuned C++) — about **2.6× in shifted
 geometric mean**, and never faster on a single instance. The performance profile shows exactly
 where we stand. The numerical kernels are compiled to native code with Numba; the whole simplex
 iteration now runs in one compiled kernel, and hyper-sparse solves and a Markowitz LU are next.

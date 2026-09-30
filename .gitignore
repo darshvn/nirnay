@@ -17,3 +17,4 @@ deliverables/deck/render/
 data/qp/
 # the SIH26117 template deck is the team's own file; build_from_template.py expects it at tpl117/src.pptx
 deliverables/deck/tpl117/
+~$*
