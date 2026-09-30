@@ -8,6 +8,8 @@ from __future__ import annotations
 import numpy as np
 from numba import njit
 
+from ..linalg.lu import _btran_lu_sparse, _eta_btran, _eta_ftran, _ftran_lu
+
 BASIC, AT_LOWER, AT_UPPER, AT_ZERO, FIXED = 0, 1, 2, 3, 4
 
 
@@ -215,3 +217,140 @@ def sub_scaled_head(x, head, v, t):
     for r in range(len(head)):
         if v[r] != 0.0:
             x[head[r]] -= t * v[r]
+
+
+# ---------------------------------------------------------------------------------------------
+# The whole dual simplex iteration in one compiled call. It runs until something needs the
+# Python driver (optimality, a refactorisation, an unstable pivot, a possible infeasibility,
+# a full eta file or the iteration budget) and says which with a code.
+RUN_OPTIMAL, RUN_NO_ENTERING, RUN_UNSTABLE, RUN_REFACTOR, RUN_GROW, RUN_BUDGET, RUN_SKIP_EXHAUSTED = \
+    0, 1, 2, 3, 4, 5, 6
+
+
+@njit(cache=True)
+def dual_run(n, m, Acp, Ari, Avl, ATp, ATi, ATx,
+             x, d, c, status, head, weights, lo, up, skip,
+             Lp, Li, Lx, Up, Ui, Ux, Udiag, prow, q, URp, URj, URx, LRp, LRc, LRx,
+             Ep, Er, Ei, Ex, n_eta, refactor_every, lu_nnz,
+             ptol, dtol, pivtol, budget):
+    """Returns (code, iterations done, n_eta, row r involved)."""
+    nm = n + m
+    e = np.zeros(m)
+    rho = np.empty(m)
+    wrk = np.empty(m)
+    alpha_r = np.empty(nm)
+    alpha_q = np.empty(m)
+    tau = np.empty(m)
+    rhs = np.zeros(m)
+    any_skip = False
+    for t in range(m):
+        if skip[t]:
+            any_skip = True
+    its = 0
+    while its < budget:
+        # room in the eta file for one more (dense, worst case) update
+        if Ep[n_eta] + 1 + m > len(Ei) or n_eta + 2 >= len(Er):
+            return RUN_GROW, its, n_eta, -1
+        r = choose_leaving_head(x, head, lo, up, weights, skip, ptol)
+        if r < 0:
+            if any_skip:
+                return RUN_SKIP_EXHAUSTED, its, n_eta, -1
+            return RUN_OPTIMAL, its, n_eta, -1
+        jr = head[r]
+        if x[jr] < lo[jr]:
+            sgn = -1.0
+            target = lo[jr]
+            delta = lo[jr] - x[jr]
+        else:
+            sgn = 1.0
+            target = up[jr]
+            delta = x[jr] - up[jr]
+        # BTRAN: rho = B^-T e_r
+        for t in range(m):
+            e[t] = 0.0
+        e[r] = 1.0
+        if n_eta:
+            _eta_btran(e, Ep, Er, Ei, Ex, n_eta)
+        _btran_lu_sparse(m, URp, URj, URx, LRp, LRc, LRx, Udiag, prow, q, e, rho)
+        pivot_row(n, m, ATp, ATi, ATx, rho, status, alpha_r)
+        qe, nflip, flips = dual_ratio_test(alpha_r, d, status, lo, up, sgn, delta, dtol, pivtol)
+        if qe < 0:
+            return RUN_NO_ENTERING, its, n_eta, r
+        dq = d[qe]
+        stq = status[qe]
+        if (stq == AT_LOWER and dq < 0.0) or (stq == AT_UPPER and dq > 0.0):
+            c[qe] -= dq
+            d[qe] = 0.0
+        # FTRAN: alpha_q = B^-1 a_q
+        for t in range(m):
+            wrk[t] = 0.0
+        if qe < n:
+            for p in range(Acp[qe], Acp[qe + 1]):
+                wrk[Ari[p]] = Avl[p]
+        else:
+            wrk[qe - n] = -1.0
+        _ftran_lu(m, Lp, Li, Lx, Up, Ui, Ux, Udiag, prow, q, wrk, alpha_q)
+        if n_eta:
+            _eta_ftran(alpha_q, Ep, Er, Ei, Ex, n_eta)
+        apiv = alpha_q[r]
+        if abs(apiv - alpha_r[qe]) > 1e-6 * (1.0 + abs(apiv)) or abs(apiv) < 1e-9:
+            return RUN_UNSTABLE, its, n_eta, r
+        # bound flips move the basic variables once, before the pivot
+        if nflip:
+            for t in range(m):
+                rhs[t] = 0.0
+            apply_flips(flips, status, x, lo, up, n, Acp, Ari, Avl, rhs)
+            _ftran_lu(m, Lp, Li, Lx, Up, Ui, Ux, Udiag, prow, q, rhs, wrk)
+            if n_eta:
+                _eta_ftran(wrk, Ep, Er, Ei, Ex, n_eta)
+            sub_scaled_head(x, head, wrk, 1.0)
+        # dual update
+        theta_d = d[qe] / alpha_r[qe]
+        update_duals(d, alpha_r, theta_d, status)
+        leaving = head[r]
+        d[leaving] = -theta_d
+        d[qe] = 0.0
+        # primal update
+        theta_p = (x[leaving] - target) / apiv
+        sub_scaled_head(x, head, alpha_q, theta_p)
+        x[qe] += theta_p
+        x[leaving] = target
+        # dual steepest-edge weights: tau = B^-1 rho
+        beta = 0.0
+        for t in range(m):
+            wrk[t] = rho[t]
+            beta += rho[t] * rho[t]
+        _ftran_lu(m, Lp, Li, Lx, Up, Ui, Ux, Udiag, prow, q, wrk, tau)
+        if n_eta:
+            _eta_ftran(tau, Ep, Er, Ei, Ex, n_eta)
+        update_dse(weights, alpha_q, tau, r, beta)
+        # basis change
+        if lo[leaving] == up[leaving]:
+            status[leaving] = FIXED
+        elif target == lo[leaving]:
+            status[leaving] = AT_LOWER
+        else:
+            status[leaving] = AT_UPPER
+        head[r] = qe
+        status[qe] = BASIC
+        its += 1
+        if any_skip:
+            for t in range(m):
+                skip[t] = False
+            any_skip = False
+        # eta update (product form): alpha_q stored sparsely, its pivot first
+        start = Ep[n_eta]
+        Ei[start] = r
+        Ex[start] = apiv
+        k = start + 1
+        for t in range(m):
+            if t != r and abs(alpha_q[t]) > 1e-14:
+                Ei[k] = t
+                Ex[k] = alpha_q[t]
+                k += 1
+        Er[n_eta] = r
+        n_eta += 1
+        Ep[n_eta] = k
+        if n_eta >= refactor_every or k > 8 * (lu_nnz + m):
+            return RUN_REFACTOR, its, n_eta, r
+    return RUN_BUDGET, its, n_eta, -1

@@ -499,6 +499,15 @@ class BasisFactor:
                          self.Udiag, self.prow, self.q, b, out)
         return out
 
+    def grow(self):
+        """Make room in the eta file (the compiled simplex loop asks when it is nearly full)."""
+        size = max(2 * len(self._Ei), int(self._Ep[self.n_eta]) + 2 * self.m + 64)
+        self._Ei = np.resize(self._Ei, size)
+        self._Ex = np.resize(self._Ex, size)
+        if self.n_eta + 3 >= len(self._Er):
+            self._Er = np.resize(self._Er, 2 * len(self._Er) + 4)
+            self._Ep = np.resize(self._Ep, 2 * len(self._Ep) + 4)
+
     def update(self, r: int, alpha: np.ndarray, drop: float = 1e-14) -> bool:
         """Record the pivot at basis position r with FTRANed entering column alpha.
         Returns True when a refactorisation is due."""

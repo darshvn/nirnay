@@ -207,96 +207,64 @@ class SimplexLP:
             self._refactor(lo, up, c)
 
     def _dual_loop(self, lo, up, c, deadline, max_iter):
+        """Dual simplex on bounds lo/up and costs c. The iterations run inside the compiled
+        kernel K.dual_run; this loop handles what needs Python between its calls:
+        refactorisations, unstable pivots, confirming infeasibility, growing the eta file, and
+        the time and iteration limits."""
         m = self.m
         self._ensure_factor(lo, up, c)
         self._dual_feasibility_fix(lo, up, c)
         skip = np.zeros(m, dtype=bool)
-        any_skip = False
         fresh = True
+        A, AT = self.A, self.AT
         while True:
             if self.iterations >= max_iter:
                 return "iteration_limit"
             if time.perf_counter() > deadline:
                 return "time_limit"
-            r = K.choose_leaving_head(self.x, self.head, lo, up, self.weights, skip, self.ptol)
-            if r < 0:
-                if any_skip:
-                    skip[:] = False
-                    any_skip = False
-                    self._refactor(lo, up, c)
-                    continue
+            f = self.factor_
+            budget = int(min(max_iter - self.iterations, 200))
+            code, its, n_eta, r = K.dual_run(
+                self.n, m, A.colptr, A.rowidx, A.vals, AT.colptr, AT.rowidx, AT.vals,
+                self.x, self.d, c, self.status, self.head, self.weights, lo, up, skip,
+                f.Lp, f.Li, f.Lx, f.Up, f.Ui, f.Ux, f.Udiag, f.prow, f.q,
+                f.URp, f.URj, f.URx, f.LRp, f.LRc, f.LRx,
+                f._Ep, f._Er, f._Ei, f._Ex, f.n_eta, f.refactor_every, f.nnz,
+                self.ptol, self.dtol, self.pivtol, budget)
+            f.n_eta = n_eta
+            self.iterations += its
+            if its:
+                fresh = False
+            if self.verbose and its:
+                xb = self.x[self.head]
+                inf = np.maximum(0, np.maximum(lo[self.head] - xb, xb - up[self.head]))
+                print(f"  dual {self.iterations:7d}  obj {c @ self.x:+.10e}  pinf {inf.sum():.2e}")
+            if code == K.RUN_OPTIMAL:
                 return "optimal"
-            jr = self.head[r]
-            if self.x[jr] < lo[jr]:
-                sgn, target, delta = -1.0, lo[jr], lo[jr] - self.x[jr]
-            else:
-                sgn, target, delta = 1.0, up[jr], self.x[jr] - up[jr]
-            e = np.zeros(m)
-            e[r] = 1.0
-            rho = self.factor_.btran(e)
-            alpha_r = self._row(rho)
-            q, nflip, flips = K.dual_ratio_test(alpha_r, self.d, self.status, lo, up, sgn, delta,
-                                                self.dtol, self.pivtol)
-            if q < 0:
-                if self.factor_.n_eta or not fresh:
+            if code == K.RUN_BUDGET:
+                continue
+            if code == K.RUN_REFACTOR:
+                self._refactor(lo, up, c)
+                self._dual_feasibility_fix(lo, up, c)
+            elif code == K.RUN_GROW:
+                f.grow()
+            elif code == K.RUN_SKIP_EXHAUSTED:
+                skip[:] = False
+                self._refactor(lo, up, c)
+            elif code == K.RUN_UNSTABLE:
+                # the pivot seen from the row and from the column disagree: refactor; if a fresh
+                # factor still disagrees, leave this row out of the next pricing
+                if f.n_eta == 0:
+                    skip[r] = True
+                self._refactor(lo, up, c)
+            elif code == K.RUN_NO_ENTERING:
+                if f.n_eta or not fresh:
                     # confirm on a fresh factorisation with recomputed duals before concluding
                     self._refactor(lo, up, c)
                     self._dual_feasibility_fix(lo, up, c)
                     fresh = True
                     continue
                 return "infeasible"
-            fresh = False
-            # a reduced cost with the wrong sign (inside the tolerance) is shifted to zero, so
-            # the step never moves the dual objective backwards (Koberstein sec. 6.2.2.2)
-            dq, stq = self.d[q], self.status[q]
-            if (stq == AT_LOWER and dq < 0) or (stq == AT_UPPER and dq > 0):
-                c[q] -= dq
-                self.d[q] = 0.0
-            alpha_q = self.factor_.ftran(self._dense_column(q))
-            # the pivot seen from the row and from the column must agree
-            if abs(alpha_q[r] - alpha_r[q]) > 1e-6 * (1 + abs(alpha_q[r])) or abs(alpha_q[r]) < 1e-9:
-                if self.factor_.n_eta == 0:
-                    skip[r] = True         # fresh factor and still unstable: try another row
-                    any_skip = True
-                self._refactor(lo, up, c)
-                continue
-            # bound flips move the basic variables once, before the pivot
-            if nflip:
-                rhs = np.zeros(m)
-                K.apply_flips(flips, self.status, self.x, lo, up, self.n, self.A.colptr,
-                              self.A.rowidx, self.A.vals, rhs)
-                K.sub_scaled_head(self.x, self.head, self.factor_.ftran(rhs), 1.0)
-            # dual update
-            theta_d = self.d[q] / alpha_r[q]
-            K.update_duals(self.d, alpha_r, theta_d, self.status)
-            leaving = self.head[r]
-            self.d[leaving] = -theta_d
-            self.d[q] = 0.0
-            # primal update
-            xr = self.x[leaving]
-            theta_p = (xr - target) / alpha_q[r]
-            K.sub_scaled_head(self.x, self.head, alpha_q, theta_p)
-            self.x[q] += theta_p
-            self.x[leaving] = target
-            # steepest-edge weights
-            tau = self.factor_.ftran(rho)
-            K.update_dse(self.weights, alpha_q, tau, r, float(rho @ rho))
-            # basis change
-            self.status[leaving] = AT_LOWER if target == lo[leaving] else AT_UPPER
-            if lo[leaving] == up[leaving]:
-                self.status[leaving] = FIXED
-            self.head[r] = q
-            self.status[q] = BASIC
-            self.iterations += 1
-            if any_skip:
-                skip[:] = False
-                any_skip = False
-            if self.factor_.update(r, alpha_q):
-                self._refactor(lo, up, c)
-                self._dual_feasibility_fix(lo, up, c)
-            if self.verbose and self.iterations % 200 == 0:
-                inf = np.maximum(0, np.maximum(lo[self.head] - self.x[self.head], self.x[self.head] - up[self.head]))
-                print(f"  dual {self.iterations:7d}  obj {c @ self.x:+.10e}  pinf {inf.sum():.2e}")
 
     # ---------------------------------------------------------------- primal simplex (cleanup)
     def _primal_loop(self, lo, up, c, deadline, max_iter):
