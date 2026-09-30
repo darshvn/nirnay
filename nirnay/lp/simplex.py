@@ -460,6 +460,10 @@ class SimplexLP:
     def _result(self, status, t0):
         n = self.n
         x = self.x[:n] * self.C
+        if status == "optimal" and getattr(self, "factor_valid", False):
+            # the loops update reduced costs incrementally but y only at refactorisation, and
+            # the dual loop may have shifted costs: recompute y exactly for the true costs
+            self.y = self.factor_.btran(self.cost[self.head])
         y = getattr(self, "y", np.zeros(self.m)) * self.R
         model = self.model
         z = model.c - model.A.rmatvec(y)

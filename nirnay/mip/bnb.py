@@ -206,10 +206,12 @@ class BranchAndBound:
         self.lp.set_structural_bounds(lb, ub)
         self.lp.load_basis(basis)
 
-    def _dive(self, x, lb, ub, max_depth=None, lp_budget=None):
-        """Fractional diving with propagation: repeatedly fix the least fractional integer to its
-        nearest value, propagate, re-solve the LP, until the LP is integral or infeasible
-        (Berthold, "Primal heuristics for mixed integer programs", ZIB diploma thesis 2006)."""
+    def _dive(self, x, lb, ub, max_depth=None, lp_budget=None, up=False):
+        """Diving with propagation and a single backtrack: repeatedly round one fractional
+        integer by tightening one of its bounds (x_j <= floor or x_j >= ceil), propagate and
+        re-solve the LP, until the LP is integral. When a step makes the LP infeasible, try the
+        other direction once before giving up (Berthold, "Primal heuristics for mixed integer
+        programs", ZIB diploma thesis 2006; Achterberg 2007, sec. 9.2)."""
         basis = self.lp.get_basis()
         l2, u2 = lb.copy(), ub.copy()
         is_int = self.model.integer
@@ -223,15 +225,30 @@ class BranchAndBound:
                 break
             if self.lp_iters - it0 > budget or time.perf_counter() > self.deadline:
                 break
-            dist = np.minimum(frac, 1 - frac)
-            k = int(np.argmin(dist))
+            if up:
+                # "up" diving: round the variable closest to its ceiling upward
+                k = int(np.argmax(frac))
+                go_up = True
+            else:
+                # fractional diving: round the least fractional variable to its nearest integer
+                dist = np.minimum(frac, 1 - frac)
+                k = int(np.argmin(dist))
+                go_up = frac[k] >= 0.5
             j = frac_idx[k]
-            v = np.floor(x[j]) if frac[k] < 0.5 else np.ceil(x[j])
-            l2[j] = u2[j] = v
-            if not self._propagate(l2, u2):
-                break
-            st, o, x = self._solve_lp(np.where(is_int, l2, self.orig.lb), np.where(is_int, u2, self.orig.ub))
-            if st != "optimal" or o >= self._cutoff():
+            ok = False
+            for direction in (go_up, not go_up):         # single backtrack
+                l3, u3 = l2.copy(), u2.copy()
+                if direction:
+                    l3[j] = np.ceil(x[j])
+                else:
+                    u3[j] = np.floor(x[j])
+                if not self._propagate(l3, u3):
+                    continue
+                st, o, x3 = self._solve_lp(np.where(is_int, l3, self.orig.lb), np.where(is_int, u3, self.orig.ub))
+                if st == "optimal" and o < self._cutoff():
+                    l2, u2, x, ok = l3, u3, x3, True
+                    break
+            if not ok:
                 break
         self.lp.set_structural_bounds(np.where(is_int, lb, self.orig.lb), np.where(is_int, ub, self.orig.ub))
         self.lp.load_basis(basis)
@@ -315,8 +332,10 @@ class BranchAndBound:
             print(f"  root LP {m.sense * obj:+.10g}, {len(self._fractional(x)[0])} fractional")
         self._try_incumbent(x, "root LP")
         self._fix_and_solve(x, lb0, ub0)
-        if self.incumbent is None:
-            self._dive(x, lb0.copy(), ub0.copy())
+        self._dive(x, lb0.copy(), ub0.copy())
+        if self.incumbent is not None:
+            # a second dive rounding the other way often finds a different, better point
+            self._dive(x, lb0.copy(), ub0.copy(), up=True)
 
         counter = itertools.count()
         heap = []          # (bound, -depth, tie, node): ties go to the deepest node
@@ -363,8 +382,8 @@ class BranchAndBound:
                 continue
             if self._try_incumbent(np.where(np.isin(np.arange(m.n), self.int_idx), np.round(x), x), "rounding"):
                 pass
-            if self.incumbent is None and self.nodes % 50 == 0:
-                self._dive(x, node.lb.copy(), node.ub.copy())
+            if (self.incumbent is None and self.nodes % 50 == 0) or self.nodes % 400 == 0:
+                self._dive(x, node.lb.copy(), node.ub.copy(), up=bool(self.nodes % 800))
             if self.nodes % 100 == 0:
                 self._fix_and_solve(x, np.where(is_int, node.lb, m.lb), np.where(is_int, node.ub, m.ub))
             lb, ub = node.lb, node.ub
