@@ -75,9 +75,25 @@ class SimplexLP:
 
     # ---------------------------------------------------------------- helpers
     def _init_nonbasic(self, lo, up, c):
-        for j in range(self.n + self.m):
-            self.status[j] = self._bound_status(j, lo, up, c[j])
-            self.x[j] = self._bound_value(j, lo, up)
+        idx = np.arange(self.n + self.m)
+        self.status[:] = self._statuses(idx, lo, up, c)
+        self.x[:] = self._values(idx, lo, up)
+
+    @staticmethod
+    def _statuses(idx, lo, up, d):
+        """Vectorised _bound_status for the variables idx (d: their reduced costs)."""
+        l, u = lo[idx], up[idx]
+        fl, fu = np.isfinite(l), np.isfinite(u)
+        dj = d[idx] if np.ndim(d) else np.full(len(idx), float(d))
+        st = np.where(fl & fu, np.where(dj >= 0, AT_LOWER, AT_UPPER),
+                      np.where(fl, AT_LOWER, np.where(fu, AT_UPPER, AT_ZERO)))
+        st[l == u] = FIXED
+        return st
+
+    def _values(self, idx, lo, up):
+        """Vectorised _bound_value: the value each nonbasic variable in idx sits at."""
+        st = self.status[idx]
+        return np.where((st == AT_LOWER) | (st == FIXED), lo[idx], np.where(st == AT_UPPER, up[idx], 0.0))
 
     @staticmethod
     def _bound_status(j, lo, up, dj):
@@ -112,18 +128,22 @@ class SimplexLP:
         return v
 
     def _refactor(self, lo, up, c):
-        m = self.m
+        m, n = self.m, self.n
+        head = self.head
+        is_log = head >= n
+        # column lengths: A's for structurals, 1 for logicals (-e_i)
+        hs = np.where(is_log, 0, head)
+        lens = np.where(is_log, 1, self.A.colptr[hs + 1] - self.A.colptr[hs])
         Bp = np.zeros(m + 1, dtype=np.int64)
-        rows, vals = [], []
-        is_log = np.zeros(m, dtype=bool)
-        for k, j in enumerate(self.head):
-            r, a = self._column(j)
-            rows.append(r)
-            vals.append(a)
-            Bp[k + 1] = Bp[k] + len(r)
-            is_log[k] = j >= self.n
-        Bi = np.concatenate(rows).astype(np.int64) if rows else np.zeros(0, dtype=np.int64)
-        Bx = np.concatenate(vals) if vals else np.zeros(0)
+        np.cumsum(lens, out=Bp[1:])
+        # gather every entry in one pass: position p of B maps to entry start[k] + offset in A
+        k_of = np.repeat(np.arange(m), lens)
+        off = np.arange(Bp[-1]) - Bp[k_of]
+        src = self.A.colptr[hs][k_of] + off
+        log_k = is_log[k_of]
+        src_safe = np.where(log_k, 0, src)
+        Bi = np.where(log_k, head[k_of] - n, self.A.rowidx[src_safe] if self.A.nnz else 0).astype(np.int64)
+        Bx = np.where(log_k, -1.0, self.A.vals[src_safe] if self.A.nnz else 0.0)
         repairs = self.factor_.factor(Bp, Bi, Bx, is_log)
         self.factor_valid = True
         if repairs:
@@ -161,23 +181,21 @@ class SimplexLP:
 
     def _dual_feasibility_fix(self, lo, up, c):
         """Restore dual feasibility after a recompute: flip boxed variables, shift other costs."""
-        fixed = 0
-        for j in np.flatnonzero(self.status != BASIC):
-            st, dj = self.status[j], self.d[j]
-            bad = (st == AT_LOWER and dj < -self.dtol) or (st == AT_UPPER and dj > self.dtol) or \
-                  (st == AT_ZERO and abs(dj) > self.dtol)
-            if not bad:
-                continue
-            if np.isfinite(lo[j]) and np.isfinite(up[j]) and st != FIXED:
-                self.status[j] = AT_UPPER if st == AT_LOWER else AT_LOWER
-                self.x[j] = up[j] if self.status[j] == AT_UPPER else lo[j]
-            else:
-                c[j] -= dj           # shift the cost so this reduced cost is zero
-                self.d[j] = 0.0
-            fixed += 1
-        if fixed:
-            self._recompute(lo, up, c)
-        return fixed
+        st, d = self.status, self.d
+        bad = ((st == AT_LOWER) & (d < -self.dtol)) | ((st == AT_UPPER) & (d > self.dtol)) |               ((st == AT_ZERO) & (np.abs(d) > self.dtol))
+        idx = np.flatnonzero(bad)
+        if len(idx) == 0:
+            return 0
+        boxed = np.isfinite(lo[idx]) & np.isfinite(up[idx])
+        flip = idx[boxed]                       # boxed: move to the other bound
+        to_up = st[flip] == AT_LOWER
+        st[flip] = np.where(to_up, AT_UPPER, AT_LOWER)
+        self.x[flip] = np.where(to_up, up[flip], lo[flip])
+        shift = idx[~boxed]                     # otherwise shift the cost so d_j = 0
+        c[shift] -= d[shift]
+        d[shift] = 0.0
+        self._recompute(lo, up, c)
+        return len(idx)
 
     # ---------------------------------------------------------------- dual simplex loop
     def _ensure_factor(self, lo, up, c):
@@ -361,7 +379,9 @@ class SimplexLP:
         if not self.perturb:
             return c.copy()
         nm = self.n + self.m
-        mag = 5e-7 * (1 + np.abs(c)) * (1 + self.rng.random(nm))
+        if getattr(self, "_pert_u", None) is None:
+            self._pert_u = self.rng.random(nm)      # drawn once: repeated solves reuse it
+        mag = 5e-7 * (1 + np.abs(c)) * (1 + self._pert_u)
         sign = np.where(self.status == AT_UPPER, -1.0, 1.0)
         pert = np.where(self.status == BASIC, 0.0, sign * mag)
         pert[(lo == up) | (self.status == AT_ZERO)] = 0.0
@@ -378,10 +398,10 @@ class SimplexLP:
         self.lo[:n] = nlo
         self.up[:n] = nup
         d = getattr(self, "d", None)
-        for j in changed:
-            if self.status[j] != BASIC:
-                self.status[j] = self._bound_status(j, self.lo, self.up, d[j] if d is not None else 0.0)
-                self.x[j] = self._bound_value(j, self.lo, self.up)
+        nb = changed[self.status[changed] != BASIC]
+        if len(nb):
+            self.status[nb] = self._statuses(nb, self.lo, self.up, d if d is not None else 0.0)
+            self.x[nb] = self._values(nb, self.lo, self.up)
         return len(changed)
 
     def get_basis(self) -> np.ndarray:
@@ -399,16 +419,14 @@ class SimplexLP:
             # a different basic set: the factorisation no longer describes it
             self.head = np.flatnonzero(st == BASIC).astype(np.int64)
             self.factor_valid = False
-        for j in np.flatnonzero(st != BASIC):
-            if st[j] == FIXED and self.lo[j] != self.up[j]:
-                self.status[j] = self._bound_status(j, self.lo, self.up, 0.0)
-            elif st[j] != FIXED and self.lo[j] == self.up[j]:
-                self.status[j] = FIXED
-            elif st[j] == AT_LOWER and not np.isfinite(self.lo[j]):
-                self.status[j] = self._bound_status(j, self.lo, self.up, 0.0)
-            elif st[j] == AT_UPPER and not np.isfinite(self.up[j]):
-                self.status[j] = self._bound_status(j, self.lo, self.up, 0.0)
-            self.x[j] = self._bound_value(j, self.lo, self.up)
+        nb = np.flatnonzero(st != BASIC)
+        lo, up, s = self.lo[nb], self.up[nb], st[nb]
+        # statuses that no longer fit the current bounds are recomputed from the bounds
+        bad = ((s == FIXED) & (lo != up)) | ((s == AT_LOWER) & ~np.isfinite(lo)) |               ((s == AT_UPPER) & ~np.isfinite(up))
+        s = np.where(bad, self._statuses(nb, self.lo, self.up, 0.0), s)
+        s = np.where((s != FIXED) & (lo == up), FIXED, s)
+        self.status[nb] = s
+        self.x[nb] = self._values(nb, self.lo, self.up)
         return True
 
     def primal(self) -> np.ndarray:
@@ -433,9 +451,9 @@ class SimplexLP:
                     st = "dual_infeasible"
                 return self._result(st, t0)
             self.phase1_done = True
-            for j in np.flatnonzero(self.status != BASIC):
-                self.status[j] = self._bound_status(j, self.lo, self.up, self.d[j])
-                self.x[j] = self._bound_value(j, self.lo, self.up)
+            nb = np.flatnonzero(self.status != BASIC)
+            self.status[nb] = self._statuses(nb, self.lo, self.up, self.d)
+            self.x[nb] = self._values(nb, self.lo, self.up)
         # --- phase 2 on perturbed costs ---
         c = self._perturbed(self.cost, self.lo, self.up)
         st = self._dual_loop(self.lo, self.up, c, deadline, max_iter)
