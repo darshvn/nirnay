@@ -878,6 +878,7 @@ def _run(model, S, be, xp, t0, tol, max_iter, time_limit, verbose, check_every, 
     ray = None
     last_print = -np.inf
     nchk = 0
+    n_row_rejects = 0
     while True:
         steps = min(check_every, max_iter - k)
         if steps <= 0:
@@ -925,10 +926,22 @@ def _run(model, S, be, xp, t0, tol, max_iter, time_limit, verbose, check_every, 
             break
         err, lab, v = scored[0]
         if err <= tol:
-            status = "optimal"
-            best = (lab, x, y) if lab == "current" else (lab, xa, ya)
-            final_rel = rel(v)
-            break
+            # the paper's test is relative to ||b||_2: a few huge right-hand sides (s250r10,
+            # ||b|| ~ 2e5) make it accept rows violated by ~20 in absolute terms. Accept only if
+            # every row also meets the tolerance relative to its own bound (infinity norm).
+            xs_c = x if lab == "current" else xa
+            x_host = be.to_host(xs_c * ux)
+            ax = model.A.matvec(x_host)
+            viol = np.maximum(0.0, np.maximum(model.rl - ax, ax - model.ru))
+            bmag = np.maximum(np.where(np.isfinite(model.rl), np.abs(model.rl), 0.0),
+                              np.where(np.isfinite(model.ru), np.abs(model.ru), 0.0))
+            row_err = float(np.max(viol / (1.0 + bmag), initial=0.0))
+            if row_err <= 10 * tol:
+                status = "optimal"
+                best = (lab, x, y) if lab == "current" else (lab, xa, ya)
+                final_rel = rel(v)
+                break
+            n_row_rejects += 1
         # Farkas certificates, PDLP's relative tests
         d_obj, d_res, p_obj, p_res = rays
         if d_obj > 0 and d_res <= eps_inf * d_obj:
@@ -998,7 +1011,7 @@ def _run(model, S, be, xp, t0, tol, max_iter, time_limit, verbose, check_every, 
     info = {"backend": be.name, "rel_primal": float(final_rel[0]), "rel_dual": float(final_rel[1]),
             "rel_gap": float(final_rel[2]), "restarts": nrest, "rejected_steps": nrej,
             "primal_weight": omega, "step_size": eta, "solution": lab, "setup_time": setup,
-            "tol": tol, "checks": nchk}
+            "tol": tol, "checks": nchk, "row_check_rejects": n_row_rejects}
     if ray is not None:
         info["ray"] = ray
     ok = status == "optimal"

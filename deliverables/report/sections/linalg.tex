@@ -13,9 +13,17 @@ triangular in pivot order, and $\tilde L$ is unit lower triangular up to a row p
 $k$ of $\tilde L$ has its unit entry at the pivot row $p_k$).
 
 \paragraph{Column order}
-Logical (slack) columns come first. They are signed unit vectors and factor at no cost, and a simplex
-basis consists mostly of them. Structural columns follow in order of increasing length, a cheap
-stand-in for a fill-reducing order that works well on such mostly-logical bases.
+A simplex basis is mostly triangular, and the order exploits that (Suhl and Suhl~\cite{suhl1990}).
+A linear-time pass over the basis repeatedly removes \emph{column singletons} of the active
+submatrix (logical columns are the first of them), then \emph{row singletons}; each removal can
+create new singletons. What is left is the \emph{bump}, ordered by increasing active column count.
+Each triangular column is given the singleton row found for it as its pivot, and the factorisation
+takes the columns in the order column singletons, row singletons (in the order found), bump. In
+the left-looking scheme below, a row-singleton row is touched by no later column, so its column of
+$\tilde L$ is never applied again. All fill is therefore confined to the bump. On final Netlib bases
+this lowers $(\nnz(\tilde L)+\nnz(U))/\nnz(B)$ from 2.95 to 1.81 on \code{d2q06c}, 2.47 to 1.80 on
+\code{25fv47} and 1.24 to 1.06 on \code{degen3}; \code{pilot}, whose bump is large and dense, stays
+near 7 and needs a genuine Markowitz factorisation of the bump.
 
 \paragraph{Left-looking elimination}
 Column $k$ is computed by the sparse triangular solve of Gilbert and Peierls~\cite{gilbert1988}:
@@ -29,8 +37,9 @@ those rows. The work is proportional to the floating-point operations, not to~$m
 in already-pivoted rows form column $k$ of~$U$; the others are the candidates for the pivot.
 
 \paragraph{Threshold pivoting}
-Among unpivoted rows $r$ with $|x_r|\ge\tau\max_{r'}|x_{r'}|$ ($\tau=0.1$), the pivot is the row
-with the fewest nonzeros in $B$, with ties broken by magnitude. This is Markowitz's idea
+A triangular column takes its assigned singleton row whenever that entry passes the threshold test.
+Otherwise, among unpivoted rows $r$ with $|x_r|\ge\tau\max_{r'}|x_{r'}|$ ($\tau=0.1$), the pivot is
+the row with the fewest nonzeros inside the bump, with ties broken by magnitude. This is Markowitz's idea
 \cite{markowitz1957} applied row-wise: it gives up a little stability for much less fill.
 
 \paragraph{Basis repair}
@@ -50,7 +59,10 @@ is $B_{\text{new}}^{-1}=E^{-1}B^{-1}$ with the elementary eta matrix
 \end{equation}
 the product form of the inverse~\cite{dantzig1954}. The eta file stores $\alpha_q$ sparsely,
 dropping entries below $10^{-14}$. FTRAN ($B x = b$) applies the LU solve and then the etas in order;
-BTRAN ($B\T y=d$) applies the etas in reverse and then the transposed LU solve. The basis is
+BTRAN ($B\T y=d$) applies the etas in reverse and then the transposed LU solve. For that
+solve the factorisation also keeps row-wise copies of $\tilde L$ and $U$, so both triangular solves
+run in the axpy form that skips zero entries; the right-hand side $e_r$ of the simplex's BTRAN
+is very sparse, and the column-wise dot-product form could not exploit that. The basis is
 refactorised after 100 updates, or earlier when the eta file holds more than
 $8(\nnz(\tilde L)+\nnz(U)+m)$ entries, to bound both the work per solve and the growth of rounding
 error.

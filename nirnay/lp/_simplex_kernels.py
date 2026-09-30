@@ -163,3 +163,55 @@ def update_dse(weights, alpha_q, tau, r, beta_r):
         w = weights[i] + ratio * (ratio * beta_r - 2.0 * tau[i])
         weights[i] = max(w, 1e-4 * (1.0 + ratio * ratio))
     weights[r] = max(beta_r / (ar * ar), 1e-8)
+
+
+@njit(cache=True)
+def choose_leaving_head(x, head, lo, up, weights, skip, ptol):
+    """choose_leaving without gathering x, lo, up by basis position first: reads through head."""
+    best = -1
+    bestscore = 0.0
+    for r in range(len(head)):
+        if skip[r]:
+            continue
+        j = head[r]
+        v = x[j]
+        if v < lo[j] - ptol:
+            inf = lo[j] - v
+        elif v > up[j] + ptol:
+            inf = v - up[j]
+        else:
+            continue
+        score = inf * inf / weights[r]
+        if score > bestscore:
+            bestscore = score
+            best = r
+    return best
+
+
+@njit(cache=True)
+def apply_flips(flips, status, x, lo, up, n, colptr, rowidx, vals, rhs):
+    """Move each flipped nonbasic variable to its other bound; accumulate a_j * change into rhs
+    (row-indexed), so one FTRAN updates the basic variables for all flips together."""
+    for f in range(len(flips)):
+        j = flips[f]
+        old = x[j]
+        if status[j] == AT_LOWER:
+            status[j] = AT_UPPER
+            x[j] = up[j]
+        else:
+            status[j] = AT_LOWER
+            x[j] = lo[j]
+        delta = x[j] - old
+        if j < n:
+            for p in range(colptr[j], colptr[j + 1]):
+                rhs[rowidx[p]] += vals[p] * delta
+        else:
+            rhs[j - n] -= delta
+
+
+@njit(cache=True)
+def sub_scaled_head(x, head, v, t):
+    """x[head] -= t * v, without the temporary arrays numpy would make."""
+    for r in range(len(head)):
+        if v[r] != 0.0:
+            x[head[r]] -= t * v[r]

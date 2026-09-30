@@ -17,7 +17,9 @@
   \item \textbf{Interior points.} Infeasibility is detected heuristically, not certified. There is no
         crossover to a basic solution, and the QP termination test can accept a point whose
         objective is wrong (\cref{sec:results}).
-  \item \textbf{Linear algebra.} FTRAN and BTRAN use dense work vectors, updates are product-form, and
+  \item \textbf{Linear algebra.} FTRAN and BTRAN skip zero entries but still use dense work vectors
+        of length $m$ (no hyper-sparse solves), the bump is factorised left-looking rather than by
+        Markowitz, updates are product-form, and
         the Cholesky is up-looking rather than supernodal, so it uses no dense BLAS kernels.
   \item \textbf{Scope.} No MIQP, no second-order cones, no SOS constraints, no callbacks or modelling
         layer beyond the Python API and MPS files.

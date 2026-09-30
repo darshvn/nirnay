@@ -211,26 +211,26 @@ class SimplexLP:
         self._ensure_factor(lo, up, c)
         self._dual_feasibility_fix(lo, up, c)
         skip = np.zeros(m, dtype=bool)
+        any_skip = False
         fresh = True
         while True:
             if self.iterations >= max_iter:
                 return "iteration_limit"
             if time.perf_counter() > deadline:
                 return "time_limit"
-            xB = self.x[self.head]
-            lB, uB = lo[self.head], up[self.head]
-            w = np.where(skip, np.inf, self.weights)
-            r = K.choose_leaving(xB, lB, uB, w, self.ptol)
+            r = K.choose_leaving_head(self.x, self.head, lo, up, self.weights, skip, self.ptol)
             if r < 0:
-                if skip.any():
+                if any_skip:
                     skip[:] = False
+                    any_skip = False
                     self._refactor(lo, up, c)
                     continue
                 return "optimal"
-            if xB[r] < lB[r]:
-                sgn, target, delta = -1.0, lB[r], lB[r] - xB[r]
+            jr = self.head[r]
+            if self.x[jr] < lo[jr]:
+                sgn, target, delta = -1.0, lo[jr], lo[jr] - self.x[jr]
             else:
-                sgn, target, delta = 1.0, uB[r], xB[r] - uB[r]
+                sgn, target, delta = 1.0, up[jr], self.x[jr] - up[jr]
             e = np.zeros(m)
             e[r] = 1.0
             rho = self.factor_.btran(e)
@@ -257,21 +257,15 @@ class SimplexLP:
             if abs(alpha_q[r] - alpha_r[q]) > 1e-6 * (1 + abs(alpha_q[r])) or abs(alpha_q[r]) < 1e-9:
                 if self.factor_.n_eta == 0:
                     skip[r] = True         # fresh factor and still unstable: try another row
+                    any_skip = True
                 self._refactor(lo, up, c)
                 continue
             # bound flips move the basic variables once, before the pivot
             if nflip:
                 rhs = np.zeros(m)
-                for j in flips:
-                    old = self.x[j]
-                    if self.status[j] == AT_LOWER:
-                        self.status[j], self.x[j] = AT_UPPER, up[j]
-                    else:
-                        self.status[j], self.x[j] = AT_LOWER, lo[j]
-                    rr, aa = self._column(j)
-                    rhs[rr] += aa * (self.x[j] - old)
-                dxB = self.factor_.ftran(rhs)
-                self.x[self.head] -= dxB
+                K.apply_flips(flips, self.status, self.x, lo, up, self.n, self.A.colptr,
+                              self.A.rowidx, self.A.vals, rhs)
+                K.sub_scaled_head(self.x, self.head, self.factor_.ftran(rhs), 1.0)
             # dual update
             theta_d = self.d[q] / alpha_r[q]
             K.update_duals(self.d, alpha_r, theta_d, self.status)
@@ -281,7 +275,7 @@ class SimplexLP:
             # primal update
             xr = self.x[leaving]
             theta_p = (xr - target) / alpha_q[r]
-            self.x[self.head] -= theta_p * alpha_q
+            K.sub_scaled_head(self.x, self.head, alpha_q, theta_p)
             self.x[q] += theta_p
             self.x[leaving] = target
             # steepest-edge weights
@@ -294,7 +288,9 @@ class SimplexLP:
             self.head[r] = q
             self.status[q] = BASIC
             self.iterations += 1
-            skip[:] = False
+            if any_skip:
+                skip[:] = False
+                any_skip = False
             if self.factor_.update(r, alpha_q):
                 self._refactor(lo, up, c)
                 self._dual_feasibility_fix(lo, up, c)

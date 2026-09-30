@@ -62,6 +62,15 @@ recession cones of the bounds and tested as a Farkas certificate~\cite{applegate
 with positive objective and relative infeasibility below $10^{-8}$ proves primal infeasibility; a
 primal ray with $c\T\Delta x<0$ proves unboundedness.
 
+The 2-norm primal test alone is not safe. On \code{s250r10} a few right-hand sides are huge
+($\|b\|_2\approx2\times10^5$), so the test accepted a point whose worst row was violated by about 20 in
+absolute terms: the reported objective was 0.22 away from the optimum, and every bound is finite, so
+the dual residual gave no warning. NIRNAY therefore accepts a candidate only if, in addition, every
+row satisfies $\mathrm{viol}_i\le10\epsilon\,(1+|b_i|)$ in the original model. A candidate that
+fails the row check is counted (\code{row\_check\_rejects}) and the iteration continues. On
+\code{s250r10} the GPU run now ends within $3\times10^{-5}$ of the HiGHS objective, at the cost of a
+longer run (\cref{tab:large}).
+
 \subsection{Two backends}
 \paragraph{CPU}
 One Numba call runs a whole block of 64 attempts, in three passes over the data per attempt:

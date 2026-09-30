@@ -51,7 +51,7 @@ def _grow_f(a, need):
 
 
 @njit(cache=True)
-def _factor(m, Bp, Bi, Bx, q, row_count, threshold, tiny):
+def _factor(m, Bp, Bi, Bx, q, row_count, threshold, tiny, pref):
     """Left-looking LU of the m x m matrix B (CSC), columns taken in the order q."""
     cap = max(4 * Bp[m] + m, 16)
     Lp = np.zeros(m + 1, dtype=np.int64)
@@ -139,7 +139,10 @@ def _factor(m, Bp, Bi, Bx, q, row_count, threshold, tiny):
                     amax = a
         # --- pivot choice among unpivoted rows ---
         piv = -1
-        if amax > tiny:
+        pr = pref[k]
+        if pr >= 0 and pinv[pr] < 0 and abs(x[pr]) > tiny and abs(x[pr]) >= threshold * amax:
+            piv = pr                    # the singleton row the ordering assigned to this column
+        elif amax > tiny:
             best = 1 << 60
             bestval = 0.0
             for t in range(top, m):
@@ -222,6 +225,206 @@ def _btran_lu(m, Lp, Li, Lx, Up, Ui, Ux, Udiag, prow, q, b, out):
 
 
 @njit(cache=True)
+def _triangular_order(m, Bp, Bi):
+    """Column order for the LU of a simplex basis (Suhl & Suhl, ORSA J. Comput. 2, 1990).
+
+    Column singletons of the active submatrix are taken first, repeatedly (logical columns are
+    the first of them); then row singletons, repeatedly, placed last in reverse order; the rest
+    (the "bump") goes in between, shortest columns first. In the left-looking factorisation the
+    front and back columns then have exactly one candidate pivot row each, so the triangular
+    parts of the basis are factorised with no fill at all; only the bump can fill."""
+    # row -> columns
+    rcnt = np.zeros(m + 1, dtype=np.int64)
+    for p in range(Bp[m]):
+        rcnt[Bi[p] + 1] += 1
+    for i in range(m):
+        rcnt[i + 1] += rcnt[i]
+    Rp = rcnt.copy()
+    Rc = np.empty(Bp[m], dtype=np.int64)
+    nxt = rcnt[:-1].copy()
+    for j in range(m):
+        for p in range(Bp[j], Bp[j + 1]):
+            i = Bi[p]
+            Rc[nxt[i]] = j
+            nxt[i] += 1
+    col_cnt = np.empty(m, dtype=np.int64)
+    for j in range(m):
+        col_cnt[j] = Bp[j + 1] - Bp[j]
+    row_cnt = np.empty(m, dtype=np.int64)
+    for i in range(m):
+        row_cnt[i] = Rp[i + 1] - Rp[i]
+    col_done = np.zeros(m, dtype=np.bool_)
+    row_done = np.zeros(m, dtype=np.bool_)
+    front = np.empty(m, dtype=np.int64)
+    front_row = np.empty(m, dtype=np.int64)
+    nf = 0
+    stack = np.empty(m, dtype=np.int64)
+    ns = 0
+    for j in range(m):
+        if col_cnt[j] == 1:
+            stack[ns] = j
+            ns += 1
+    while ns > 0:
+        ns -= 1
+        j = stack[ns]
+        if col_done[j] or col_cnt[j] != 1:
+            continue
+        r = -1
+        for p in range(Bp[j], Bp[j + 1]):
+            if not row_done[Bi[p]]:
+                r = Bi[p]
+                break
+        col_done[j] = True
+        front[nf] = j
+        front_row[nf] = r
+        nf += 1
+        row_done[r] = True
+        for p in range(Bp[j], Bp[j + 1]):          # column j leaves every row it touches
+            row_cnt[Bi[p]] -= 1
+        for p in range(Rp[r], Rp[r + 1]):          # row r leaves every column it touches
+            c = Rc[p]
+            if not col_done[c]:
+                col_cnt[c] -= 1
+                if col_cnt[c] == 1:
+                    stack[ns] = c
+                    ns += 1
+    back = np.empty(m, dtype=np.int64)
+    back_row = np.empty(m, dtype=np.int64)
+    nb = 0
+    ns = 0
+    for i in range(m):
+        if not row_done[i] and row_cnt[i] == 1:
+            stack[ns] = i
+            ns += 1
+    while ns > 0:
+        ns -= 1
+        i = stack[ns]
+        if row_done[i] or row_cnt[i] != 1:
+            continue
+        c = -1
+        for p in range(Rp[i], Rp[i + 1]):
+            if not col_done[Rc[p]]:
+                c = Rc[p]
+                break
+        col_done[c] = True
+        row_done[i] = True
+        back[nb] = c
+        back_row[nb] = i
+        nb += 1
+        for p in range(Rp[i], Rp[i + 1]):
+            cc = Rc[p]
+            if not col_done[cc]:
+                col_cnt[cc] -= 1
+        for p in range(Bp[c], Bp[c + 1]):          # column c leaves its other rows
+            r = Bi[p]
+            if not row_done[r]:
+                row_cnt[r] -= 1
+                if row_cnt[r] == 1:
+                    stack[ns] = r
+                    ns += 1
+    # the bump: remaining columns, fewest active entries first
+    bump = np.empty(m - nf - nb, dtype=np.int64)
+    keys = np.empty(m - nf - nb, dtype=np.int64)
+    k = 0
+    for j in range(m):
+        if not col_done[j]:
+            bump[k] = j
+            keys[k] = col_cnt[j]
+            k += 1
+    bump = bump[np.argsort(keys, kind="mergesort")]
+    # left-looking order: column singletons, then row singletons in the order found (each
+    # pivots on its own row, and no later column touches that row, so its L column is never
+    # used again), then the bump, where all the fill is
+    order = np.empty(m, dtype=np.int64)
+    pref = np.full(m, -1, dtype=np.int64)
+    order[:nf] = front[:nf]
+    pref[:nf] = front_row[:nf]
+    order[nf:nf + nb] = back[:nb]
+    pref[nf:nf + nb] = back_row[:nb]
+    order[nf + nb:] = bump
+    # row counts inside the bump: the tie-break for the bump's pivot rows (closer to Markowitz
+    # than counts over the whole basis, most of which is already triangular)
+    bump_rc = np.zeros(m, dtype=np.int64)
+    for t in range(len(bump)):
+        j = bump[t]
+        for p in range(Bp[j], Bp[j + 1]):
+            if not row_done[Bi[p]]:
+                bump_rc[Bi[p]] += 1
+    return order, pref, nf, nb, bump_rc
+
+
+@njit(cache=True)
+def _transpose_factors(m, Lp, Li, Lx, Up, Ui, Ux, pinv):
+    """Row-wise copies of L and U for the sparse (axpy) form of BTRAN.
+
+    Returns, for U, the entries of each row k (columns j > k, values U[k, j]); for L, for each
+    pivot step k the entries L[prow[k], c] of the columns c < k that have a nonzero in row
+    prow[k] (stored against the step k of that row)."""
+    # U: column j holds rows Ui (steps < j); transpose into rows
+    ucnt = np.zeros(m + 1, dtype=np.int64)
+    for pp in range(Up[m]):
+        ucnt[Ui[pp] + 1] += 1
+    for k in range(m):
+        ucnt[k + 1] += ucnt[k]
+    URp = ucnt.copy()
+    URj = np.empty(Up[m], dtype=np.int64)
+    URx = np.empty(Up[m])
+    nxt = ucnt[:-1].copy()
+    for j in range(m):
+        for pp in range(Up[j], Up[j + 1]):
+            i = Ui[pp]
+            q = nxt[i]
+            nxt[i] += 1
+            URj[q] = j
+            URx[q] = Ux[pp]
+    # L: column c holds (after its unit diagonal) original rows r with pinv[r] > c
+    nL = Lp[m]
+    lcnt = np.zeros(m + 1, dtype=np.int64)
+    for c in range(m):
+        for pp in range(Lp[c] + 1, Lp[c + 1]):
+            r = Li[pp]
+            if r >= 0:
+                lcnt[pinv[r] + 1] += 1
+    for k in range(m):
+        lcnt[k + 1] += lcnt[k]
+    LRp = lcnt.copy()
+    LRc = np.empty(max(lcnt[m], 1), dtype=np.int64)
+    LRx = np.empty(max(lcnt[m], 1))
+    nxt = lcnt[:-1].copy()
+    for c in range(m):
+        for pp in range(Lp[c] + 1, Lp[c + 1]):
+            r = Li[pp]
+            if r >= 0:
+                k = pinv[r]
+                q = nxt[k]
+                nxt[k] += 1
+                LRc[q] = c
+                LRx[q] = Lx[pp]
+    return URp, URj, URx, LRp, LRc, LRx
+
+
+@njit(cache=True)
+def _btran_lu_sparse(m, URp, URj, URx, LRp, LRc, LRx, Udiag, prow, q, b, out):
+    """B' y = b in axpy form over the row-wise factors: a zero is skipped, not multiplied."""
+    t = np.empty(m)
+    for k in range(m):
+        t[k] = b[q[k]]
+    for k in range(m):                      # U' t = b, forward
+        tk = t[k]
+        if tk != 0.0:
+            tk /= Udiag[k]
+            t[k] = tk
+            for pp in range(URp[k], URp[k + 1]):
+                t[URj[pp]] -= URx[pp] * tk
+    for k in range(m - 1, -1, -1):          # L' y = t, backward
+        yk = t[k]
+        out[prow[k]] = yk
+        if yk != 0.0:
+            for pp in range(LRp[k], LRp[k + 1]):
+                t[LRc[pp]] -= LRx[pp] * yk
+
+
+@njit(cache=True)
 def _eta_ftran(x, Ep, Er, Ei, Ex, n_eta):
     for e in range(n_eta):
         r = Er[e]
@@ -258,15 +461,13 @@ class BasisFactor:
     def factor(self, Bp, Bi, Bx, is_logical):
         """Factor the basis matrix given column-wise. Returns [(position, row)] repairs needed."""
         m = self.m
-        lengths = np.diff(Bp)
-        # logical columns first, then structurals by length
-        key = np.where(is_logical, -1, lengths)
-        q = np.argsort(key, kind="stable").astype(np.int64)
-        row_count = np.zeros(m, dtype=np.int64)
-        np.add.at(row_count, Bi, 1)
+        # column singletons first, row singletons last, the bump between (see _triangular_order)
+        q, pref, self.n_front, self.n_back, row_count = _triangular_order(m, Bp, Bi)
         (self.Lp, self.Li, self.Lx, self.Up, self.Ui, self.Ux, self.Udiag, self.pinv, self.prow,
-         sing) = _factor(m, Bp, Bi, Bx, q, row_count, self.threshold, self.tiny)
+         sing) = _factor(m, Bp, Bi, Bx, q, row_count, self.threshold, self.tiny, pref)
         self.q = q
+        (self.URp, self.URj, self.URx, self.LRp, self.LRc, self.LRx) = _transpose_factors(
+            m, self.Lp, self.Li, self.Lx, self.Up, self.Ui, self.Ux, self.pinv)
         self.n_eta = 0
         self._Ep[0] = 0
         repairs = []
@@ -294,8 +495,8 @@ class BasisFactor:
         if self.n_eta:
             _eta_btran(b, self._Ep, self._Er, self._Ei, self._Ex, self.n_eta)
         out = np.empty(self.m)
-        _btran_lu(self.m, self.Lp, self.Li, self.Lx, self.Up, self.Ui, self.Ux, self.Udiag,
-                  self.prow, self.q, b, out)
+        _btran_lu_sparse(self.m, self.URp, self.URj, self.URx, self.LRp, self.LRc, self.LRx,
+                         self.Udiag, self.prow, self.q, b, out)
         return out
 
     def update(self, r: int, alpha: np.ndarray, drop: float = 1e-14) -> bool:

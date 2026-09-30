@@ -25,7 +25,7 @@ const ipm1 = readCsv(path.join(ROOT, "results", "netlib_ipm_v1.csv"));
 const ipm2 = readCsv(path.join(ROOT, "results", "netlib_ipm_v2.csv"));
 // newest complete sweep of each kind (a sweep still running is skipped until it is complete)
 const newest = (names, minRows) => { for (const n of names) { const r = readCsv(path.join(ROOT, "results", n)); if (r.length >= minRows) return r; } return []; };
-const spx = newest(["netlib_simplex_v3.csv", "netlib_simplex_v2.csv", "netlib_simplex_v1.csv"], 80);
+const spx = newest(["netlib_simplex_v4.csv", "netlib_simplex_v3.csv", "netlib_simplex_v2.csv", "netlib_simplex_v1.csv"], 80);
 const ipmBest = ipm2.length >= 80 ? ipm2 : ipm1;
 const nIpm = solved(ipmBest).length, nIpmTried = ipmBest.length;
 const nSpx = solved(spx).length, nSpxTried = spx.length;
